@@ -87,6 +87,14 @@ export default function EnergyFlowChart({ t, hourly }) {
     return aggregateDaily(hourly)
   }, [hourly, resolution, t])
 
+  if (!hourly?.length) {
+    return (
+      <p className="text-sm text-gray-400 text-center py-10">
+        {t('flowChartUnavailable')}
+      </p>
+    )
+  }
+
   const resolutions = [
     { value: 'monthly', label: t('resMonthly') },
     { value: 'weekly', label: t('resWeekly') },
