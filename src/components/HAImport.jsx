@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { HAWebSocket, getEnergyEntities, normalizeHAStats, autoDetectSensors } from '../utils/haConnector.js'
+import { loadHaUrl, saveHaUrl, loadHaToken, saveHaToken } from '../utils/storage.js'
 
 const DEFAULT_URL = 'http://homeassistant.local:8123'
 
@@ -14,8 +15,8 @@ function defaultDateRange() {
 }
 
 export default function HAImport({ t, onDataReady }) {
-  const [url, setUrl] = useState(DEFAULT_URL)
-  const [token, setToken] = useState('')
+  const [url, setUrl] = useState(() => loadHaUrl() ?? DEFAULT_URL)
+  const [token, setToken] = useState(() => loadHaToken() ?? '')
   const [showToken, setShowToken] = useState(false)
   const [status, setStatus] = useState('idle') // idle | connecting | connected | error
   const [errorMsg, setErrorMsg] = useState('')
@@ -113,7 +114,7 @@ export default function HAImport({ t, onDataReady }) {
           <input
             type="url"
             value={url}
-            onChange={e => setUrl(e.target.value)}
+            onChange={e => { setUrl(e.target.value); saveHaUrl(e.target.value) }}
             disabled={status === 'connected'}
             placeholder="http://homeassistant.local:8123"
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-gray-50 disabled:text-gray-400"
@@ -128,7 +129,7 @@ export default function HAImport({ t, onDataReady }) {
             <input
               type={showToken ? 'text' : 'password'}
               value={token}
-              onChange={e => setToken(e.target.value)}
+              onChange={e => { setToken(e.target.value); saveHaToken(e.target.value) }}
               disabled={status === 'connected'}
               placeholder="eyJ…"
               className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-gray-50 disabled:text-gray-400"
