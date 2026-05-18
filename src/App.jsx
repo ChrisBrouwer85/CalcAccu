@@ -5,14 +5,39 @@ import AccuConfig from './components/AccuConfig.jsx'
 import StrategyConfig from './components/StrategyConfig.jsx'
 import PriceConfig from './components/PriceConfig.jsx'
 import SimulationResults from './components/SimulationResults.jsx'
+import LoginScreen from './components/LoginScreen.jsx'
 import { runSimulation } from './utils/simulation.js'
 import { getStaticPricesForYear, getStaticPriceMap, DUTCH_PRICE_HISTORY } from './utils/energyPrices.js'
 
 const STEPS = [1, 2, 3, 4]
 
+const AVATAR_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f97316','#ec4899','#14b8a6']
+
+function getAvatarBg(name) {
+  return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
+}
+
+function getInitials(name) {
+  return name.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join('').toUpperCase()
+}
+
+function UserAvatar({ name }) {
+  return (
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold select-none shrink-0"
+      style={{ backgroundColor: getAvatarBg(name) }}
+      title={name}
+    >
+      {getInitials(name)}
+    </div>
+  )
+}
+
 export default function App() {
   const [lang, setLang] = useState('en')
   const t = (key) => translations[lang][key] ?? translations.en[key] ?? key
+
+  const [user, setUser] = useState(null)
 
   const [activeStep, setActiveStep] = useState(1)
   const [hourlyData, setHourlyData] = useState([])
@@ -110,6 +135,10 @@ export default function App() {
     setSimulationResults(null)
   }
 
+  if (!user) {
+    return <LoginScreen t={t} lang={lang} setLang={setLang} onLogin={setUser} />
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -144,6 +173,7 @@ export default function App() {
                 {t('uploadAnother')}
               </button>
             )}
+            <UserAvatar name={user.name} />
           </div>
         </div>
       </header>
