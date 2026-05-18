@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   loadHaUrl, saveHaUrl,
+  loadHaMapping, saveHaMapping,
   loadHourlyData, saveHourlyData,
   serializePriceConfig, deserializePriceConfig,
   serializeSimResults,
@@ -27,6 +28,38 @@ describe('HA URL', () => {
       throw new DOMException('QuotaExceededError')
     })
     expect(() => saveHaUrl('http://ha.local')).not.toThrow()
+    spy.mockRestore()
+  })
+})
+
+// ── HA sensor mapping ─────────────────────────────────────────────────────────
+
+describe('HA mapping', () => {
+  const mapping = {
+    solar: 'sensor.solar',
+    gridImport: [{ id: 'sensor.import', tariff: 0.29 }],
+    gridExport: [{ id: 'sensor.export', tariff: 0.10 }],
+  }
+
+  it('round-trips a mapping', () => {
+    saveHaMapping(mapping)
+    expect(loadHaMapping()).toEqual(mapping)
+  })
+
+  it('returns null when nothing stored', () => {
+    expect(loadHaMapping()).toBeNull()
+  })
+
+  it('returns null on corrupted JSON', () => {
+    localStorage.setItem('calcaccu:haMapping', 'bad-json')
+    expect(loadHaMapping()).toBeNull()
+  })
+
+  it('does not throw on QuotaExceededError', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    expect(() => saveHaMapping(mapping)).not.toThrow()
     spy.mockRestore()
   })
 })
