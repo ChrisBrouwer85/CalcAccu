@@ -5,11 +5,18 @@ import AccuConfig from './components/AccuConfig.jsx'
 import StrategyConfig from './components/StrategyConfig.jsx'
 import PriceConfig from './components/PriceConfig.jsx'
 import SimulationResults from './components/SimulationResults.jsx'
+import SavedSimulations from './components/SavedSimulations.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
 import { auth, firebaseConfigured } from './firebase.js'
 import { onAuthStateChanged } from 'firebase/auth'
 import { runSimulation } from './utils/simulation.js'
 import { getStaticPricesForYear, getStaticPriceMap, DUTCH_PRICE_HISTORY } from './utils/energyPrices.js'
+import {
+  loadHourlyData, saveHourlyData,
+  loadSavedSimulations, saveSimulation, deleteSavedSimulation,
+  serializePriceConfig, deserializePriceConfig, serializeSimResults,
+  generateSimName,
+} from './utils/storage.js'
 
 const STEPS = [1, 2, 3, 4]
 
@@ -82,6 +89,7 @@ export default function App() {
   })
 
   const [simulationResults, setSimulationResults] = useState(null)
+  const [savedSims, setSavedSims] = useState(() => loadSavedSimulations())
 
   const dataDateRange = useMemo(() => {
     if (!hourlyData.length) return null
@@ -105,26 +113,23 @@ export default function App() {
     return true
   }
 
+  function buildPriceMap(data, cfg) {
+    if (cfg.source === 'api' && cfg.hourlyPriceMap) {
+      return { priceMap: cfg.hourlyPriceMap, sellPrice: cfg.sellPrice }
+    }
+    const yr = parseInt(cfg.selectedYear) || 2024
+    const staticPrices = getStaticPricesForYear(yr)
+    const buyPrice = cfg.source === 'manual' ? cfg.buyPrice : staticPrices.buy
+    const sellPrice = cfg.source === 'manual' ? cfg.sellPrice : staticPrices.sell
+    return { priceMap: getStaticPriceMap(data, buyPrice), sellPrice }
+  }
+
   function handleCalculate() {
     const allSizes = [
       ...accuConfig.selectedSizes,
       accuConfig.customSize ? parseFloat(accuConfig.customSize) : null,
     ].filter(s => s && isFinite(s))
-
-    let priceMap = null
-    let sellPrice = priceConfig.sellPrice
-
-    if (priceConfig.source === 'api' && priceConfig.hourlyPriceMap) {
-      priceMap = priceConfig.hourlyPriceMap
-      sellPrice = priceConfig.sellPrice
-    } else {
-      const yr = parseInt(priceConfig.selectedYear) || 2024
-      const staticPrices = getStaticPricesForYear(yr)
-      const buyPrice = priceConfig.source === 'manual' ? priceConfig.buyPrice : staticPrices.buy
-      sellPrice = priceConfig.source === 'manual' ? priceConfig.sellPrice : staticPrices.sell
-      priceMap = getStaticPriceMap(hourlyData, buyPrice)
-    }
-
+    const { priceMap, sellPrice } = buildPriceMap(hourlyData, priceConfig)
     const results = allSizes.map(size => ({
       sizeKwh: size,
       result: runSimulation(
@@ -144,6 +149,61 @@ export default function App() {
 
     setSimulationResults(results)
     setActiveStep('results')
+
+    saveHourlyData(hourlyData)
+    const now = new Date()
+    const sim = {
+      id: String(now.getTime()),
+      name: generateSimName(now),
+      savedAt: now.toISOString(),
+      accuConfig,
+      priceConfig: serializePriceConfig(priceConfig),
+      homePriority,
+      simulationResults: serializeSimResults(results),
+    }
+    const updated = saveSimulation(sim)
+    setSavedSims(updated)
+  }
+
+  function handleLoadSim(sim) {
+    const stored = loadHourlyData()
+    if (!stored || stored.length === 0) {
+      alert(t('savedSimNoData'))
+      return
+    }
+    const restoredPriceConfig = deserializePriceConfig(sim.priceConfig)
+    setHourlyData(stored)
+    setAccuConfig(sim.accuConfig)
+    setHomePriority(sim.homePriority)
+    setPriceConfig(restoredPriceConfig)
+    const { priceMap, sellPrice } = buildPriceMap(stored, restoredPriceConfig)
+    const allSizes = [
+      ...sim.accuConfig.selectedSizes,
+      sim.accuConfig.customSize ? parseFloat(sim.accuConfig.customSize) : null,
+    ].filter(s => s && isFinite(s))
+    const results = allSizes.map(size => ({
+      sizeKwh: size,
+      result: runSimulation(
+        stored,
+        {
+          capacityKwh: size,
+          chargeEfficiency: sim.accuConfig.efficiency,
+          dischargeEfficiency: sim.accuConfig.efficiency,
+          maxChargeRateKw: sim.accuConfig.maxRateKw,
+          maxDischargeRateKw: sim.accuConfig.maxRateKw,
+        },
+        { homePriority: sim.homePriority },
+        priceMap,
+        sellPrice,
+      ),
+    }))
+    setSimulationResults(results)
+    setActiveStep('results')
+  }
+
+  function handleDeleteSim(id) {
+    const updated = deleteSavedSimulation(id)
+    setSavedSims(updated)
   }
 
   const stepLabels = [t('step1'), t('step2'), t('step3'), t('step4')]
@@ -196,6 +256,12 @@ export default function App() {
                 </button>
               ))}
             </div>
+            <SavedSimulations
+              t={t}
+              savedSims={savedSims}
+              onLoad={handleLoadSim}
+              onDelete={handleDeleteSim}
+            />
             {simulationResults && (
               <button
                 onClick={resetApp}

@@ -117,6 +117,13 @@ export const translations = {
     loginErrorWeakPassword: 'Password must be at least 6 characters.',
     jan: 'Jan', feb: 'Feb', mar: 'Mar', apr: 'Apr', may: 'May', jun: 'Jun',
     jul: 'Jul', aug: 'Aug', sep: 'Sep', oct: 'Oct', nov: 'Nov', dec: 'Dec',
+    savedSimsButton: 'Saved',
+    savedSimsTitle: 'Saved simulations',
+    savedSimsEmpty: 'No saved simulations yet. Run a calculation to save one automatically.',
+    savedSimBestSavings: 'Best annual savings',
+    savedSimLoad: 'Load',
+    savedSimDelete: 'Delete',
+    savedSimNoData: 'Cannot load: source data is no longer stored. Re-import your CSV or HA data first.',
   },
   nl: {
     appTitle: 'AccuCalc',
@@ -236,6 +243,13 @@ export const translations = {
     loginErrorWeakPassword: 'Wachtwoord moet minimaal 6 tekens bevatten.',
     jan: 'jan', feb: 'feb', mar: 'mrt', apr: 'apr', may: 'mei', jun: 'jun',
     jul: 'jul', aug: 'aug', sep: 'sep', oct: 'okt', nov: 'nov', dec: 'dec',
+    savedSimsButton: 'Opgeslagen',
+    savedSimsTitle: 'Opgeslagen simulaties',
+    savedSimsEmpty: 'Nog geen simulaties opgeslagen. Voer een berekening uit om er één automatisch op te slaan.',
+    savedSimBestSavings: 'Beste jaarlijkse besparing',
+    savedSimLoad: 'Laden',
+    savedSimDelete: 'Verwijder',
+    savedSimNoData: 'Kan niet laden: brondata staat niet meer in de opslag. Importeer eerst opnieuw je CSV- of HA-data.',
   },
 }
 

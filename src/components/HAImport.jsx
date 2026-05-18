@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { HAWebSocket, getEnergyEntities, normalizeHAStats, autoDetectSensors } from '../utils/haConnector.js'
+import { loadHaUrl, saveHaUrl } from '../utils/storage.js'
 
 const DEFAULT_URL = 'http://homeassistant.local:8123'
 
@@ -14,7 +15,7 @@ function defaultDateRange() {
 }
 
 export default function HAImport({ t, onDataReady }) {
-  const [url, setUrl] = useState(DEFAULT_URL)
+  const [url, setUrl] = useState(() => loadHaUrl() ?? DEFAULT_URL)
   const [token, setToken] = useState('')
   const [showToken, setShowToken] = useState(false)
   const [status, setStatus] = useState('idle') // idle | connecting | connected | error
@@ -113,7 +114,7 @@ export default function HAImport({ t, onDataReady }) {
           <input
             type="url"
             value={url}
-            onChange={e => setUrl(e.target.value)}
+            onChange={e => { setUrl(e.target.value); saveHaUrl(e.target.value) }}
             disabled={status === 'connected'}
             placeholder="http://homeassistant.local:8123"
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-gray-50 disabled:text-gray-400"
