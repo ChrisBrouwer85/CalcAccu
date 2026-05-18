@@ -32,8 +32,6 @@ export default function SavingsChart({ t, results, costPerKwh }) {
     }
   })
 
-  const breakEvenY = data.length ? Math.max(...data.map(d => d['Cost / 15yr'])) : 0
-
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>

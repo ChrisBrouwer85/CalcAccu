@@ -108,3 +108,68 @@ describe('runSimulation – self-sufficiency', () => {
     expect(result.totals.selfSufficiency).toBeGreaterThanOrEqual(result.totals.baselineSelfSufficiency)
   })
 })
+
+describe('runSimulation – per-sensor tariffs', () => {
+  function makeHourWithSensors(timestamp, solar, importMap, exportMap) {
+    const gridImport = Object.values(importMap).reduce((s, v) => s + v, 0)
+    const gridExport = Object.values(exportMap).reduce((s, v) => s + v, 0)
+    return { timestamp: new Date(timestamp), solar, gridImport, gridExport, sensorImport: importMap, sensorExport: exportMap }
+  }
+
+  it('uses sensor tariff for import cost: higher tariff increases savings', () => {
+    // Hour 1: solar + some export → battery charges from the surplus
+    // Hour 2: battery discharges to reduce import from sensor.a
+    // With tariff €0.40 (vs priceMap €0.30), savings on reduced import should be higher
+    const data = [
+      makeHourWithSensors('2024-01-01T10:00:00Z', 8, {}, { 'sensor.export': 3 }), // home=5, surplus=3 → charges
+      makeHourWithSensors('2024-01-01T20:00:00Z', 0, { 'sensor.a': 5 }, {}),       // deficit → battery covers
+    ]
+    const map = priceMap(data, 0.30)
+    const tariffs = { 'sensor.a': 0.40 }
+    const noTariffResult = runSimulation(data, BATTERY_10KWH, STRATEGY_HOME, map, 0.10)
+    const tariffResult = runSimulation(data, BATTERY_10KWH, STRATEGY_HOME, map, 0.10, tariffs)
+    // Tariff €0.40 > priceMap €0.30, so battery saves more per kWh with sensor tariff
+    expect(tariffResult.financial.annualSavings).toBeGreaterThan(noTariffResult.financial.annualSavings)
+  })
+
+  it('uses sensor tariff for baseline export revenue calculation', () => {
+    // sensor.b: 2 kWh export at €0.25 → baseline revenue €0.50
+    // fallback would give 2 * 0.10 = €0.20
+    const data = [
+      makeHourWithSensors('2024-01-01T12:00:00Z', 5, {}, { 'sensor.b': 2 }),
+    ]
+    const map = priceMap(data, 0.30)
+    const tariffs = { 'sensor.b': 0.25 }
+    const noTariffResult = runSimulation(data, BATTERY_10KWH, STRATEGY_HOME, map, 0.10)
+    const tariffResult = runSimulation(data, BATTERY_10KWH, STRATEGY_HOME, map, 0.10, tariffs)
+    expect(tariffResult.financial.annualSavings).not.toBeCloseTo(noTariffResult.financial.annualSavings, 2)
+  })
+
+  it('falls back to priceMap when no sensorTariffs provided', () => {
+    const data = [
+      makeHourWithSensors('2024-01-01T10:00:00Z', 0, { 'sensor.a': 3 }, {}),
+    ]
+    const map = priceMap(data, 0.30)
+    const withEmpty = runSimulation(data, BATTERY_10KWH, STRATEGY_HOME, map, 0.10, {})
+    const withNull = runSimulation(data, BATTERY_10KWH, STRATEGY_HOME, map, 0.10, null)
+    const withUndefined = runSimulation(data, BATTERY_10KWH, STRATEGY_HOME, map, 0.10)
+    expect(withEmpty.financial.annualSavings).toBeCloseTo(withNull.financial.annualSavings, 5)
+    expect(withNull.financial.annualSavings).toBeCloseTo(withUndefined.financial.annualSavings, 5)
+  })
+
+  it('handles multiple import sensors with different tariffs', () => {
+    // Two import sensors with different tariffs
+    const data = [
+      makeHourWithSensors('2024-01-01T20:00:00Z', 0,
+        { 'sensor.cheap': 2, 'sensor.expensive': 2 },
+        {}
+      ),
+    ]
+    const map = priceMap(data, 0.30)
+    const tariffs = { 'sensor.cheap': 0.10, 'sensor.expensive': 0.50 }
+    const result = runSimulation(data, BATTERY_10KWH, STRATEGY_HOME, map, 0.10, tariffs)
+    // Should process without errors and have some financial result
+    expect(result.financial).toBeDefined()
+    expect(result.totals.gridImport).toBeGreaterThanOrEqual(0)
+  })
+})

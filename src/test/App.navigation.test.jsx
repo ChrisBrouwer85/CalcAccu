@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import App from '../App.jsx'
 
 // PapaParser is used for CSV reading; mock it so tests don't need real files
@@ -69,21 +69,6 @@ describe('App navigation', () => {
 })
 
 describe('App step 2 – AccuConfig navigation', () => {
-  function renderAtStep2() {
-    const { rerender } = render(<App />)
-
-    // Simulate the app state that would exist after file upload by triggering
-    // handleDataReady via the onDataReady callback prop exposed through CSVImport.
-    // We reach inside by clicking "Confirm & Continue" – but since Papa is mocked,
-    // we instead locate the CSVImport's onDataReady prop indirectly by testing that
-    // step 2 becomes accessible once hourlyData is set.
-    //
-    // The most reliable approach for integration: inject data via CSVImport's internal
-    // callback by firing the "Confirm & Continue" button after providing mock rawData.
-    // Because PapaParser is mocked, we just confirm the disabled state logic.
-    return { rerender }
-  }
-
   it('Next is disabled on step 2 when no sizes are selected (all deselected)', () => {
     render(<App />)
     // Step 1 Next is disabled; we can't advance without data.

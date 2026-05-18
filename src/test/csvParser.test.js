@@ -72,11 +72,17 @@ describe('applyMapping', () => {
     ],
   }
 
-  it('computes delta values from cumulative sums', () => {
+  it('computes delta values from cumulative sums (legacy string format)', () => {
     const hourly = applyMapping(byId, { solar: 'sensor.solar', gridImport: 'sensor.import', gridExport: '' })
     // First delta: 13-10=3, 15-13=2
     expect(hourly[0].solar).toBeCloseTo(3)
     expect(hourly[1].solar).toBeCloseTo(2)
+    expect(hourly[0].gridImport).toBeCloseTo(1)
+    expect(hourly[1].gridImport).toBeCloseTo(2)
+  })
+
+  it('computes delta values from cumulative sums (array format)', () => {
+    const hourly = applyMapping(byId, { solar: 'sensor.solar', gridImport: ['sensor.import'], gridExport: [] })
     expect(hourly[0].gridImport).toBeCloseTo(1)
     expect(hourly[1].gridImport).toBeCloseTo(2)
   })
@@ -102,5 +108,38 @@ describe('applyMapping', () => {
   it('returns empty array when no reference rows exist', () => {
     const hourly = applyMapping({}, { solar: '', gridImport: '', gridExport: '' })
     expect(hourly).toHaveLength(0)
+  })
+
+  it('includes sensorImport and sensorExport per-sensor breakdown', () => {
+    const hourly = applyMapping(byId, {
+      solar: 'sensor.solar',
+      gridImport: ['sensor.import'],
+      gridExport: [],
+    })
+    expect(hourly[0].sensorImport).toBeDefined()
+    expect(hourly[0].sensorImport['sensor.import']).toBeCloseTo(1)
+    expect(hourly[0].sensorExport).toBeDefined()
+  })
+
+  it('aggregates multiple import sensors into gridImport', () => {
+    const multiById = {
+      ...byId,
+      'sensor.import2': [
+        { statistic_id: 'sensor.import2', start: '2024-06-01T01:00:00Z', sum: '0' },
+        { statistic_id: 'sensor.import2', start: '2024-06-01T02:00:00Z', sum: '2' },
+        { statistic_id: 'sensor.import2', start: '2024-06-01T03:00:00Z', sum: '3' },
+      ],
+    }
+    const hourly = applyMapping(multiById, {
+      solar: '',
+      gridImport: ['sensor.import', 'sensor.import2'],
+      gridExport: [],
+    })
+    // Hour 0: import1=1, import2=2 → total=3
+    expect(hourly[0].gridImport).toBeCloseTo(3)
+    expect(hourly[0].sensorImport['sensor.import']).toBeCloseTo(1)
+    expect(hourly[0].sensorImport['sensor.import2']).toBeCloseTo(2)
+    // Hour 1: import1=2, import2=1 → total=3
+    expect(hourly[1].gridImport).toBeCloseTo(3)
   })
 })

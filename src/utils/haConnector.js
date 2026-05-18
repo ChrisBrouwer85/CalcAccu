@@ -131,27 +131,75 @@ export function normalizeHAStats(rawStats, mapping) {
     return result
   }
 
+  // Support both string (legacy) and array of { id, tariff } objects
+  const importIds = Array.isArray(mapping.gridImport)
+    ? mapping.gridImport.map(e => (typeof e === 'string' ? e : e.id)).filter(Boolean)
+    : (mapping.gridImport ? [mapping.gridImport] : [])
+
+  const exportIds = Array.isArray(mapping.gridExport)
+    ? mapping.gridExport.map(e => (typeof e === 'string' ? e : e.id)).filter(Boolean)
+    : (mapping.gridExport ? [mapping.gridExport] : [])
+
   const solarSeries = mapping.solar ? extractSeries(mapping.solar) : []
-  const importSeries = mapping.gridImport ? extractSeries(mapping.gridImport) : []
-  const exportSeries = mapping.gridExport ? extractSeries(mapping.gridExport) : []
+
+  const importSeriesBySensor = {}
+  for (const id of importIds) {
+    importSeriesBySensor[id] = extractSeries(id)
+  }
+  const exportSeriesBySensor = {}
+  for (const id of exportIds) {
+    exportSeriesBySensor[id] = extractSeries(id)
+  }
 
   const solarMap = new Map(solarSeries.map(r => [r.timestamp.toISOString(), r.kwh]))
-  const importMap = new Map(importSeries.map(r => [r.timestamp.toISOString(), r.kwh]))
-  const exportMap = new Map(exportSeries.map(r => [r.timestamp.toISOString(), r.kwh]))
 
-  const reference = importSeries.length ? importSeries : solarSeries
+  const importMapBySensor = {}
+  for (const [id, rows] of Object.entries(importSeriesBySensor)) {
+    importMapBySensor[id] = new Map(rows.map(r => [r.timestamp.toISOString(), r.kwh]))
+  }
+  const exportMapBySensor = {}
+  for (const [id, rows] of Object.entries(exportSeriesBySensor)) {
+    exportMapBySensor[id] = new Map(rows.map(r => [r.timestamp.toISOString(), r.kwh]))
+  }
+
+  const firstImportRows = importIds.length > 0 ? importSeriesBySensor[importIds[0]] : []
+  const reference = firstImportRows.length ? firstImportRows : solarSeries
+
   return reference.map(r => {
     const key = r.timestamp.toISOString()
+
+    const sensorImport = {}
+    let totalImport = 0
+    for (const id of importIds) {
+      const kwh = importMapBySensor[id]?.get(key) ?? 0
+      sensorImport[id] = kwh
+      totalImport += kwh
+    }
+
+    const sensorExport = {}
+    let totalExport = 0
+    for (const id of exportIds) {
+      const kwh = exportMapBySensor[id]?.get(key) ?? 0
+      sensorExport[id] = kwh
+      totalExport += kwh
+    }
+
     return {
       timestamp: r.timestamp,
       solar: solarMap.get(key) ?? 0,
-      gridImport: importMap.get(key) ?? 0,
-      gridExport: exportMap.get(key) ?? 0,
+      gridImport: totalImport,
+      gridExport: totalExport,
+      sensorImport,
+      sensorExport,
     }
   })
 }
 
 export function autoDetectSensors(entityIds) {
-  // Reuse same pattern logic from csvParser.js via detectColumnMapping
-  return detectColumnMapping(entityIds)
+  const suggested = detectColumnMapping(entityIds)
+  return {
+    solar: suggested.solar || '',
+    gridImport: suggested.gridImport ? [{ id: suggested.gridImport, tariff: 0.29 }] : [],
+    gridExport: suggested.gridExport ? [{ id: suggested.gridExport, tariff: 0.10 }] : [],
+  }
 }

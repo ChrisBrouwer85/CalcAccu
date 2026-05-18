@@ -1,6 +1,12 @@
 import { hourKey } from './energyPrices.js'
 
-export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sellPrice) {
+function sensorCost(sensorMap, sensorTariffs, fallbackPrice) {
+  return Object.entries(sensorMap).reduce((sum, [id, kwh]) => {
+    return sum + kwh * (sensorTariffs[id] ?? fallbackPrice)
+  }, 0)
+}
+
+export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sellPrice, sensorTariffs = null) {
   const {
     capacityKwh,
     chargeEfficiency = 0.95,
@@ -35,7 +41,14 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
   let totalHomeConsumption = 0
 
   for (const row of hourlyData) {
-    const { timestamp, solar, gridImport: rawGridImport, gridExport: rawGridExport } = row
+    const {
+      timestamp,
+      solar,
+      gridImport: rawGridImport,
+      gridExport: rawGridExport,
+      sensorImport = {},
+      sensorExport = {},
+    } = row
     const monthIdx = new Date(timestamp).getMonth()
 
     // Derive home consumption from energy balance
@@ -86,7 +99,40 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     const buyPrice = priceMap ? (priceMap.get(hourKey(timestamp)) ?? 0.27) : 0.27
     const hourSell = sellPrice ?? buyPrice * 0.3
 
-    const hourSavings = (baselineImport - gridImport) * buyPrice - (baselineExport - gridExport) * hourSell
+    // Financial calculation: use per-sensor tariffs when available
+    const hasSensorTariffs = sensorTariffs && Object.keys(sensorTariffs).length > 0
+    const hasImportSensors = Object.keys(sensorImport).length > 0
+    const hasExportSensors = Object.keys(sensorExport).length > 0
+
+    let baselineCost, actualCost, baselineRevenue, actualRevenue
+
+    if (hasSensorTariffs && hasImportSensors) {
+      baselineCost = sensorCost(sensorImport, sensorTariffs, buyPrice)
+      // Scale simulated import proportionally across sensors
+      const importScale = rawGridImport > 0 ? gridImport / rawGridImport : 0
+      const scaledImport = Object.fromEntries(
+        Object.entries(sensorImport).map(([id, kwh]) => [id, kwh * importScale])
+      )
+      actualCost = sensorCost(scaledImport, sensorTariffs, buyPrice)
+    } else {
+      baselineCost = baselineImport * buyPrice
+      actualCost = gridImport * buyPrice
+    }
+
+    if (hasSensorTariffs && hasExportSensors) {
+      baselineRevenue = sensorCost(sensorExport, sensorTariffs, hourSell)
+      // Scale simulated export proportionally across sensors
+      const exportScale = rawGridExport > 0 ? gridExport / rawGridExport : 0
+      const scaledExport = Object.fromEntries(
+        Object.entries(sensorExport).map(([id, kwh]) => [id, kwh * exportScale])
+      )
+      actualRevenue = sensorCost(scaledExport, sensorTariffs, hourSell)
+    } else {
+      baselineRevenue = baselineExport * hourSell
+      actualRevenue = gridExport * hourSell
+    }
+
+    const hourSavings = (baselineCost - actualCost) + (actualRevenue - baselineRevenue)
 
     const mo = monthly[monthIdx]
     mo.solar += solar
