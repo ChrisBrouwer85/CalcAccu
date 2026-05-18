@@ -1,10 +1,15 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { auth, db } from './firebase.js'
 import { translations } from './i18n.js'
 import CSVImport from './components/CSVImport.jsx'
 import AccuConfig from './components/AccuConfig.jsx'
 import StrategyConfig from './components/StrategyConfig.jsx'
 import PriceConfig from './components/PriceConfig.jsx'
 import SimulationResults from './components/SimulationResults.jsx'
+import AuthPage from './components/AuthPage.jsx'
+import SavedSimulations from './components/SavedSimulations.jsx'
 import { runSimulation } from './utils/simulation.js'
 import { getStaticPricesForYear, getStaticPriceMap, DUTCH_PRICE_HISTORY } from './utils/energyPrices.js'
 
@@ -13,6 +18,12 @@ const STEPS = [1, 2, 3, 4]
 export default function App() {
   const [lang, setLang] = useState('en')
   const t = (key) => translations[lang][key] ?? translations.en[key] ?? key
+
+  const [user, setUser] = useState(undefined)
+  const [showSaved, setShowSaved] = useState(false)
+  const [saveStatus, setSaveStatus] = useState(null)
+  const [showSaveInput, setShowSaveInput] = useState(false)
+  const [saveName, setSaveName] = useState('')
 
   const [activeStep, setActiveStep] = useState(1)
   const [hourlyData, setHourlyData] = useState([])
@@ -38,6 +49,10 @@ export default function App() {
   })
 
   const [simulationResults, setSimulationResults] = useState(null)
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, setUser)
+  }, [])
 
   const dataDateRange = useMemo(() => {
     if (!hourlyData.length) return null
@@ -100,6 +115,46 @@ export default function App() {
 
     setSimulationResults(results)
     setActiveStep('results')
+    setSaveStatus(null)
+    setShowSaveInput(false)
+    setSaveName('')
+  }
+
+  async function handleSaveSimulation() {
+    if (!saveName.trim() || !user) return
+    setSaveStatus('saving')
+    setShowSaveInput(false)
+    try {
+      // Strip hourly data — too large for Firestore and not needed for display
+      const resultsToSave = simulationResults.map(({ sizeKwh, result }) => ({
+        sizeKwh,
+        result: { monthly: result.monthly, totals: result.totals, financial: result.financial },
+      }))
+      const { hourlyPriceMap: _omit, ...priceConfigToSave } = priceConfig
+      await addDoc(collection(db, 'users', user.uid, 'simulations'), {
+        name: saveName.trim(),
+        createdAt: serverTimestamp(),
+        accuConfig,
+        homePriority,
+        priceConfig: priceConfigToSave,
+        results: resultsToSave,
+      })
+      setSaveStatus('saved')
+      setSaveName('')
+    } catch {
+      setSaveStatus(null)
+    }
+  }
+
+  function handleLoadSimulation({ accuConfig: ac, homePriority: hp, priceConfig: pc, simulationResults: sr }) {
+    setAccuConfig(ac)
+    setHomePriority(hp)
+    setPriceConfig(prev => ({ ...prev, ...pc, hourlyPriceMap: null }))
+    setSimulationResults(sr)
+    setActiveStep('results')
+    setSaveStatus(null)
+    setShowSaveInput(false)
+    setSaveName('')
   }
 
   const stepLabels = [t('step1'), t('step2'), t('step3'), t('step4')]
@@ -108,10 +163,36 @@ export default function App() {
     setActiveStep(1)
     setHourlyData([])
     setSimulationResults(null)
+    setSaveStatus(null)
+    setShowSaveInput(false)
+    setSaveName('')
+  }
+
+  // Loading auth state
+  if (user === undefined) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-400 text-sm">Loading…</div>
+      </div>
+    )
+  }
+
+  // Not authenticated
+  if (user === null) {
+    return <AuthPage t={t} lang={lang} setLang={setLang} />
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {showSaved && (
+        <SavedSimulations
+          t={t}
+          user={user}
+          onLoad={handleLoadSimulation}
+          onClose={() => setShowSaved(false)}
+        />
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -144,6 +225,21 @@ export default function App() {
                 {t('uploadAnother')}
               </button>
             )}
+            <button
+              onClick={() => setShowSaved(true)}
+              className="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 rounded-lg hover:bg-gray-100 font-medium"
+            >
+              {t('savedSimulations')}
+            </button>
+            <div className="flex items-center gap-1.5 pl-2 border-l border-gray-200">
+              <span className="text-xs text-gray-500 max-w-32 truncate hidden sm:block">{user.email}</span>
+              <button
+                onClick={() => signOut(auth)}
+                className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100"
+              >
+                {t('signOut')}
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -216,7 +312,48 @@ export default function App() {
 
           {activeStep === 'results' && (
             <>
-              <h2 className="text-xl font-bold text-gray-800 mb-4">🎯 {t('results')}</h2>
+              <div className="flex items-start justify-between mb-4 gap-4">
+                <h2 className="text-xl font-bold text-gray-800">🎯 {t('results')}</h2>
+                <div className="flex items-center gap-2 shrink-0">
+                  {saveStatus === 'saved' ? (
+                    <span className="text-sm text-green-600 font-medium">{t('saved')}</span>
+                  ) : saveStatus === 'saving' ? (
+                    <span className="text-sm text-gray-400">{t('saving')}</span>
+                  ) : showSaveInput ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={saveName}
+                        onChange={e => setSaveName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveSimulation(); if (e.key === 'Escape') { setShowSaveInput(false); setSaveName('') } }}
+                        placeholder={t('simName')}
+                        autoFocus
+                        className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-40"
+                      />
+                      <button
+                        onClick={handleSaveSimulation}
+                        disabled={!saveName.trim()}
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium disabled:opacity-40 transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => { setShowSaveInput(false); setSaveName('') }}
+                        className="px-2 py-1.5 rounded-lg text-gray-400 hover:text-gray-600 text-xs"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowSaveInput(true)}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 text-xs font-medium transition-colors"
+                    >
+                      {t('saveSimulation')}
+                    </button>
+                  )}
+                </div>
+              </div>
               <SimulationResults
                 t={t}
                 results={simulationResults}
