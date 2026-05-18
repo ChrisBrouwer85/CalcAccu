@@ -6,7 +6,7 @@ See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for the full directory layout
 
 ## Testing requirements
 
-**Run `npm test` before every commit.** All 33 tests must pass.
+**Run `npm test` after every change and before every commit.** All tests must pass. CI also runs `npm test` before building — a failing test blocks deployment.
 
 - Test files live in `src/test/` and use `.test.js` / `.test.jsx` extensions.
 - Framework: **Vitest** + **@testing-library/react** + **@testing-library/jest-dom**.
