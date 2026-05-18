@@ -266,15 +266,8 @@ export default function App() {
               savedSims={savedSims}
               onLoad={handleLoadSim}
               onDelete={handleDeleteSim}
+              onNewImport={simulationResults ? resetApp : null}
             />
-            {simulationResults && (
-              <button
-                onClick={resetApp}
-                className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100"
-              >
-                {t('uploadAnother')}
-              </button>
-            )}
             <UserAvatar user={user} />
           </div>
         </div>
