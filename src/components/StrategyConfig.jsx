@@ -1,4 +1,4 @@
-export default function StrategyConfig({ t, homePriority, onChange }) {
+export default function StrategyConfig({ lang, t, homePriority, onChange }) {
   const pct = Math.round(homePriority * 100)
   const sellPct = 100 - pct
 
