@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-solar: #f59e0b;
+  --color-battery: #10b981;
+  --color-grid-import: #ef4444;
+  --color-grid-export: #3b82f6;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: #f9fafb;
+}
