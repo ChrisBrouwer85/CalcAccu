@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { translations } from './i18n.js'
-import CSVImport from './components/CSVImport.jsx'
+import ImportData from './components/ImportData.jsx'
 import AccuConfig from './components/AccuConfig.jsx'
 import StrategyConfig from './components/StrategyConfig.jsx'
 import PriceConfig from './components/PriceConfig.jsx'
@@ -316,7 +316,7 @@ export default function App() {
           {activeStep === 1 && (
             <>
               <h2 className="text-xl font-bold text-gray-800 mb-4">1. {t('step1')}</h2>
-              <CSVImport
+              <ImportData
                 lang={lang}
                 t={t}
                 onDataReady={handleDataReady}

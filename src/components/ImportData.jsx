@@ -267,7 +267,7 @@ function CSVTab({ t, onDataReady, defaultBuyPrice, defaultSellPrice }) {
   )
 }
 
-export default function CSVImport({ t, onDataReady, defaultBuyPrice, defaultSellPrice }) {
+export default function ImportData({ t, onDataReady, defaultBuyPrice, defaultSellPrice }) {
   const [activeTab, setActiveTab] = useState('ha')
 
   const tabs = [
