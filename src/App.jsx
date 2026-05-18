@@ -6,7 +6,7 @@ import StrategyConfig from './components/StrategyConfig.jsx'
 import PriceConfig from './components/PriceConfig.jsx'
 import SimulationResults from './components/SimulationResults.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
-import { auth } from './firebase.js'
+import { auth, firebaseConfigured } from './firebase.js'
 import { onAuthStateChanged } from 'firebase/auth'
 import { runSimulation } from './utils/simulation.js'
 import { getStaticPricesForYear, getStaticPriceMap, DUTCH_PRICE_HISTORY } from './utils/energyPrices.js'
@@ -54,6 +54,7 @@ export default function App() {
   const [user, setUser] = useState(undefined)
 
   useEffect(() => {
+    if (!firebaseConfigured) { setUser(null); return }
     return onAuthStateChanged(auth, firebaseUser => setUser(firebaseUser ?? null))
   }, [])
 
@@ -152,6 +153,19 @@ export default function App() {
     setHourlyData([])
     setSimulationResults(null)
   }
+
+  if (!firebaseConfigured) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-8 w-full max-w-sm text-center">
+        <span className="text-4xl mb-4 block">⚙️</span>
+        <h2 className="text-lg font-bold text-gray-900 mb-2">Firebase not configured</h2>
+        <p className="text-sm text-gray-500">
+          Set the <code className="bg-gray-100 px-1 rounded">VITE_FIREBASE_*</code> environment
+          variables and rebuild the app.
+        </p>
+      </div>
+    </div>
+  )
 
   if (user === undefined) return null
   if (!user) return <LoginScreen t={t} lang={lang} setLang={setLang} />

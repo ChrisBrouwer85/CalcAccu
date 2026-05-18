@@ -8,7 +8,7 @@ vi.mock('papaparse', () => ({
 }))
 
 // Firebase: bypass auth so tests render the main app directly
-vi.mock('../firebase.js', () => ({ auth: {} }))
+vi.mock('../firebase.js', () => ({ auth: {}, firebaseConfigured: true }))
 vi.mock('firebase/auth', () => ({
   getAuth: vi.fn(() => ({})),
   onAuthStateChanged: vi.fn((auth, cb) => {
