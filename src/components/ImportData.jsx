@@ -271,8 +271,8 @@ export default function ImportData({ t, onDataReady, defaultBuyPrice, defaultSel
   const [activeTab, setActiveTab] = useState('ha')
 
   const tabs = [
-    { key: 'csv', label: t('csvTab'), icon: '📄' },
     { key: 'ha', label: t('haTab'), icon: '🏠' },
+    { key: 'csv', label: t('csvTab'), icon: '📄' },
   ]
 
   return (
