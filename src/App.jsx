@@ -16,6 +16,7 @@ import {
   loadSavedSimulations, saveSimulation, deleteSavedSimulation,
   serializePriceConfig, deserializePriceConfig, serializeSimResults,
   generateSimName,
+  loadSensorTariffs, saveSensorTariffs,
 } from './utils/storage.js'
 
 const STEPS = [1, 2, 3, 4]
@@ -88,7 +89,11 @@ export default function App() {
     hourlyPriceMap: null,
   })
 
-  const [sensorTariffs, setSensorTariffs] = useState({})
+  const [sensorTariffs, setSensorTariffs] = useState(() => loadSensorTariffs())
+
+  useEffect(() => {
+    saveSensorTariffs(sensorTariffs)
+  }, [sensorTariffs])
 
   const [simulationResults, setSimulationResults] = useState(null)
   const [savedSims, setSavedSims] = useState(() => loadSavedSimulations())
@@ -163,6 +168,7 @@ export default function App() {
       accuConfig,
       priceConfig: serializePriceConfig(priceConfig),
       homePriority,
+      sensorTariffs,
       simulationResults: serializeSimResults(results),
     }
     const updated = saveSimulation(sim)
@@ -176,10 +182,12 @@ export default function App() {
       return
     }
     const restoredPriceConfig = deserializePriceConfig(sim.priceConfig)
+    const restoredTariffs = sim.sensorTariffs ?? {}
     setHourlyData(stored)
     setAccuConfig(sim.accuConfig)
     setHomePriority(sim.homePriority)
     setPriceConfig(restoredPriceConfig)
+    setSensorTariffs(restoredTariffs)
     const { priceMap, sellPrice } = buildPriceMap(stored, restoredPriceConfig)
     const allSizes = [
       ...sim.accuConfig.selectedSizes,
@@ -199,6 +207,7 @@ export default function App() {
         { homePriority: sim.homePriority },
         priceMap,
         sellPrice,
+        restoredTariffs,
       ),
     }))
     setSimulationResults(results)

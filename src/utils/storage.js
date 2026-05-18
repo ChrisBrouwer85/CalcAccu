@@ -4,6 +4,7 @@ const KEYS = {
   haMapping: 'calcaccu:haMapping',
   hourlyData: 'calcaccu:hourlyData',
   savedSimulations: 'calcaccu:savedSimulations',
+  sensorTariffs: 'calcaccu:sensorTariffs',
 }
 
 const MAX_SAVED = 10
@@ -41,6 +42,26 @@ export function saveHaToken(token) {
     localStorage.setItem(KEYS.haToken, token)
   } catch (e) {
     console.warn('CalcAccu: could not save HA token', e)
+  }
+}
+
+// ── Sensor tariffs ────────────────────────────────────────────────────────────
+
+export function loadSensorTariffs() {
+  try {
+    const raw = localStorage.getItem(KEYS.sensorTariffs)
+    if (!raw) return {}
+    return JSON.parse(raw)
+  } catch {
+    return {}
+  }
+}
+
+export function saveSensorTariffs(tariffs) {
+  try {
+    localStorage.setItem(KEYS.sensorTariffs, JSON.stringify(tariffs))
+  } catch (e) {
+    console.warn('CalcAccu: could not save sensor tariffs', e)
   }
 }
 

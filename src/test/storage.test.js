@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   loadHaUrl, saveHaUrl,
   loadHaMapping, saveHaMapping,
+  loadSensorTariffs, saveSensorTariffs,
   loadHourlyData, saveHourlyData,
   serializePriceConfig, deserializePriceConfig,
   serializeSimResults,
@@ -60,6 +61,33 @@ describe('HA mapping', () => {
       throw new DOMException('QuotaExceededError')
     })
     expect(() => saveHaMapping(mapping)).not.toThrow()
+    spy.mockRestore()
+  })
+})
+
+// ── Sensor tariffs ────────────────────────────────────────────────────────────
+
+describe('sensorTariffs', () => {
+  it('round-trips tariffs', () => {
+    const tariffs = { 'sensor.import': 0.29, 'sensor.export': 0.10 }
+    saveSensorTariffs(tariffs)
+    expect(loadSensorTariffs()).toEqual(tariffs)
+  })
+
+  it('returns {} when nothing stored', () => {
+    expect(loadSensorTariffs()).toEqual({})
+  })
+
+  it('returns {} on corrupted JSON', () => {
+    localStorage.setItem('calcaccu:sensorTariffs', 'bad-json')
+    expect(loadSensorTariffs()).toEqual({})
+  })
+
+  it('does not throw on QuotaExceededError', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError')
+    })
+    expect(() => saveSensorTariffs({ 'sensor.x': 0.29 })).not.toThrow()
     spy.mockRestore()
   })
 })
