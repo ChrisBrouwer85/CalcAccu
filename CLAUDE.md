@@ -37,6 +37,18 @@ git checkout -b <branch-name> origin/main
 ```
 Never branch from another Claude feature branch. If the current HEAD is not on `main`, explicitly base the new branch on `origin/main`. PRs must always target `main`.
 
+**If the branch already exists** when a session starts, verify its base before using it:
+```bash
+git log --oneline origin/main..HEAD   # should show only this task's commits
+```
+If the branch was based off another feature branch, do NOT use it as-is. Either rebase onto `origin/main` or create a fresh branch from `origin/main` and cherry-pick the needed commits.
+
+**After pushing**, confirm the PR targets `main`. If a PR was auto-created targeting the wrong branch, update it immediately with:
+```bash
+gh pr edit <number> --base main
+```
+or via the GitHub MCP `update_pull_request` tool with `base: "main"`.
+
 ## Dev workflow
 
 ```bash

@@ -1,18 +1,62 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { translations } from './i18n.js'
 import CSVImport from './components/CSVImport.jsx'
 import AccuConfig from './components/AccuConfig.jsx'
 import StrategyConfig from './components/StrategyConfig.jsx'
 import PriceConfig from './components/PriceConfig.jsx'
 import SimulationResults from './components/SimulationResults.jsx'
+import LoginScreen from './components/LoginScreen.jsx'
+import { auth, firebaseConfigured } from './firebase.js'
+import { onAuthStateChanged } from 'firebase/auth'
 import { runSimulation } from './utils/simulation.js'
 import { getStaticPricesForYear, getStaticPriceMap, DUTCH_PRICE_HISTORY } from './utils/energyPrices.js'
 
 const STEPS = [1, 2, 3, 4]
 
+const AVATAR_COLORS = ['#3b82f6','#10b981','#8b5cf6','#f97316','#ec4899','#14b8a6']
+
+function getAvatarBg(name) {
+  return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
+}
+
+function getInitials(name) {
+  return name.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join('').toUpperCase()
+}
+
+function UserAvatar({ user }) {
+  if (user.photoURL) {
+    return (
+      <img
+        src={user.photoURL}
+        alt={user.displayName || user.email}
+        title={user.displayName || user.email}
+        className="w-8 h-8 rounded-full object-cover shrink-0"
+        referrerPolicy="no-referrer"
+      />
+    )
+  }
+  const name = user.displayName || user.email?.split('@')[0] || '?'
+  return (
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold select-none shrink-0"
+      style={{ backgroundColor: getAvatarBg(name) }}
+      title={user.displayName || user.email}
+    >
+      {getInitials(name)}
+    </div>
+  )
+}
+
 export default function App() {
   const [lang, setLang] = useState('en')
   const t = (key) => translations[lang][key] ?? translations.en[key] ?? key
+
+  const [user, setUser] = useState(undefined)
+
+  useEffect(() => {
+    if (!firebaseConfigured) { setUser(null); return }
+    return onAuthStateChanged(auth, firebaseUser => setUser(firebaseUser ?? null))
+  }, [])
 
   const [activeStep, setActiveStep] = useState(1)
   const [hourlyData, setHourlyData] = useState([])
@@ -110,6 +154,22 @@ export default function App() {
     setSimulationResults(null)
   }
 
+  if (!firebaseConfigured) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-8 w-full max-w-sm text-center">
+        <span className="text-4xl mb-4 block">⚙️</span>
+        <h2 className="text-lg font-bold text-gray-900 mb-2">Firebase not configured</h2>
+        <p className="text-sm text-gray-500">
+          Set the <code className="bg-gray-100 px-1 rounded">VITE_FIREBASE_*</code> environment
+          variables and rebuild the app.
+        </p>
+      </div>
+    </div>
+  )
+
+  if (user === undefined) return null
+  if (!user) return <LoginScreen t={t} lang={lang} setLang={setLang} />
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -144,6 +204,7 @@ export default function App() {
                 {t('uploadAnother')}
               </button>
             )}
+            <UserAvatar user={user} />
           </div>
         </div>
       </header>

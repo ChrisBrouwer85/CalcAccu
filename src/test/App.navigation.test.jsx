@@ -7,6 +7,20 @@ vi.mock('papaparse', () => ({
   default: { parse: vi.fn() },
 }))
 
+// Firebase: bypass auth so tests render the main app directly
+vi.mock('../firebase.js', () => ({ auth: {}, firebaseConfigured: true }))
+vi.mock('firebase/auth', () => ({
+  getAuth: vi.fn(() => ({})),
+  onAuthStateChanged: vi.fn((auth, cb) => {
+    cb({ uid: 'test', displayName: 'Test User', email: 'test@example.com', photoURL: null })
+    return vi.fn()
+  }),
+  signInWithPopup: vi.fn(),
+  GoogleAuthProvider: class {},
+  signInWithEmailAndPassword: vi.fn(),
+  createUserWithEmailAndPassword: vi.fn(),
+}))
+
 // Recharts relies on browser layout APIs not available in jsdom
 vi.mock('recharts', () => {
   const Stub = ({ children }) => children ?? null
