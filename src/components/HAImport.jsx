@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { HAWebSocket, getEnergyEntities, normalizeHAStats, autoDetectSensors } from '../utils/haConnector.js'
-import { loadHaUrl, saveHaUrl, loadHaToken, saveHaToken } from '../utils/storage.js'
+import { loadHaUrl, saveHaUrl, loadHaToken, saveHaToken, loadHaMapping, saveHaMapping } from '../utils/storage.js'
 
 const DEFAULT_URL = 'http://homeassistant.local:8123'
 
@@ -66,13 +66,22 @@ export default function HAImport({ t, onDataReady, defaultBuyPrice, defaultSellP
   const [status, setStatus] = useState('idle') // idle | connecting | connected | error
   const [errorMsg, setErrorMsg] = useState('')
   const [entityIds, setEntityIds] = useState([])
-  const [mapping, setMapping] = useState({ solar: '', gridImport: [], gridExport: [] })
+  const [mapping, setMapping] = useState(() => loadHaMapping() ?? { solar: '', gridImport: [], gridExport: [] })
+  const mappingMountedRef = useRef(false)
   const [dateRange, setDateRange] = useState(defaultDateRange)
   const [fetchStatus, setFetchStatus] = useState('idle') // idle | fetching | done | error
   const [fetchedRows, setFetchedRows] = useState(0)
   const [hourlyData, setHourlyData] = useState(null)
 
   const haRef = useRef(null)
+
+  useEffect(() => {
+    if (!mappingMountedRef.current) {
+      mappingMountedRef.current = true
+      return
+    }
+    saveHaMapping(mapping)
+  }, [mapping])
 
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
   const haIsHttp = url.startsWith('http://')
@@ -100,11 +109,19 @@ export default function HAImport({ t, onDataReady, defaultBuyPrice, defaultSellP
       setEntityIds(ids)
 
       const detected = autoDetectSensors(ids)
-      // Apply default tariffs from props
+      const saved = loadHaMapping()
+      const idSet = new Set(ids)
+      const hasSavedSolar = saved?.solar && idSet.has(saved.solar)
+      const hasSavedImport = saved?.gridImport?.some(e => e.id && idSet.has(e.id))
+      const hasSavedExport = saved?.gridExport?.some(e => e.id && idSet.has(e.id))
       setMapping({
-        solar: detected.solar,
-        gridImport: detected.gridImport.map(e => ({ ...e, tariff: defaultBuyPrice ?? e.tariff })),
-        gridExport: detected.gridExport.map(e => ({ ...e, tariff: defaultSellPrice ?? e.tariff })),
+        solar: hasSavedSolar ? saved.solar : detected.solar,
+        gridImport: hasSavedImport
+          ? saved.gridImport
+          : detected.gridImport.map(e => ({ ...e, tariff: defaultBuyPrice ?? e.tariff })),
+        gridExport: hasSavedExport
+          ? saved.gridExport
+          : detected.gridExport.map(e => ({ ...e, tariff: defaultSellPrice ?? e.tariff })),
       })
     } catch (e) {
       setStatus('error')

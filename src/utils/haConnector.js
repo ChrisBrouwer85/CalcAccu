@@ -83,14 +83,21 @@ export class HAWebSocket {
   }
 
   async fetchStatistics(sensorIds, startISO, endISO) {
-    return this._send({
-      type: 'history/statistics_during_period',
+    const payload = {
       start_time: startISO,
       end_time: endISO,
       statistic_ids: sensorIds,
       period: 'hour',
       types: ['sum', 'state'],
-    })
+    }
+    try {
+      return await this._send({ type: 'recorder/statistics_during_period', ...payload })
+    } catch (e) {
+      if (/unknown.command/i.test(e.message)) {
+        return this._send({ type: 'history/statistics_during_period', ...payload })
+      }
+      throw e
+    }
   }
 
   disconnect() {

@@ -1,6 +1,7 @@
 const KEYS = {
   haUrl: 'calcaccu:haUrl',
   haToken: 'calcaccu:haToken',
+  haMapping: 'calcaccu:haMapping',
   hourlyData: 'calcaccu:hourlyData',
   savedSimulations: 'calcaccu:savedSimulations',
 }
@@ -40,6 +41,26 @@ export function saveHaToken(token) {
     localStorage.setItem(KEYS.haToken, token)
   } catch (e) {
     console.warn('CalcAccu: could not save HA token', e)
+  }
+}
+
+// ── HA sensor mapping ─────────────────────────────────────────────────────────
+
+export function loadHaMapping() {
+  try {
+    const raw = localStorage.getItem(KEYS.haMapping)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+export function saveHaMapping(mapping) {
+  try {
+    localStorage.setItem(KEYS.haMapping, JSON.stringify(mapping))
+  } catch (e) {
+    console.warn('CalcAccu: could not save HA mapping', e)
   }
 }
 
