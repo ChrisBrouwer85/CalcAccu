@@ -58,10 +58,10 @@ export default function App() {
   const [lang, setLang] = useState('en')
   const t = (key) => translations[lang][key] ?? translations.en[key] ?? key
 
-  const [user, setUser] = useState(undefined)
+  const [user, setUser] = useState(() => firebaseConfigured ? undefined : null)
 
   useEffect(() => {
-    if (!firebaseConfigured) { setUser(null); return }
+    if (!firebaseConfigured) return
     return onAuthStateChanged(auth, firebaseUser => setUser(firebaseUser ?? null))
   }, [])
 
@@ -88,6 +88,8 @@ export default function App() {
     hourlyPriceMap: null,
   })
 
+  const [sensorTariffs, setSensorTariffs] = useState({})
+
   const [simulationResults, setSimulationResults] = useState(null)
   const [savedSims, setSavedSims] = useState(() => loadSavedSimulations())
 
@@ -99,8 +101,9 @@ export default function App() {
     return { from, to }
   }, [hourlyData])
 
-  function handleDataReady(data) {
+  function handleDataReady(data, tariffs = {}) {
     setHourlyData(data)
+    setSensorTariffs(tariffs)
     const yr = String(new Date(data[0]?.timestamp).getFullYear())
     const prices = DUTCH_PRICE_HISTORY[yr] || { buy: 0.27, sell: 0.09 }
     setPriceConfig(c => ({ ...c, selectedYear: yr, buyPrice: prices.buy, sellPrice: prices.sell }))
@@ -144,6 +147,7 @@ export default function App() {
         { homePriority },
         priceMap,
         sellPrice,
+        sensorTariffs,
       ),
     }))
 
@@ -212,6 +216,7 @@ export default function App() {
     setActiveStep(1)
     setHourlyData([])
     setSimulationResults(null)
+    setSensorTariffs({})
   }
 
   if (!firebaseConfigured) return (
@@ -311,7 +316,13 @@ export default function App() {
           {activeStep === 1 && (
             <>
               <h2 className="text-xl font-bold text-gray-800 mb-4">1. {t('step1')}</h2>
-              <CSVImport lang={lang} t={t} onDataReady={handleDataReady} />
+              <CSVImport
+                lang={lang}
+                t={t}
+                onDataReady={handleDataReady}
+                defaultBuyPrice={priceConfig.buyPrice}
+                defaultSellPrice={priceConfig.sellPrice}
+              />
             </>
           )}
 

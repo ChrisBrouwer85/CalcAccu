@@ -3,10 +3,55 @@ import { useRef, useState } from 'react'
 import { parseCSV, applyMapping } from '../utils/csvParser.js'
 import HAImport from './HAImport.jsx'
 
-function CSVTab({ t, onDataReady }) {
+function SensorList({ sensors, sensorIds, onAdd, onRemove, onChangeSensor, onChangeTariff, t, addLabel }) {
+  return (
+    <div className="space-y-2">
+      {sensors.map((entry, idx) => (
+        <div key={idx} className="flex gap-2 items-center">
+          <select
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+            value={entry.id}
+            onChange={e => onChangeSensor(idx, e.target.value)}
+          >
+            <option value="">{t('noSensor')}</option>
+            {sensorIds.map(id => (
+              <option key={id} value={id}>{id}</option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-xs text-gray-500">{t('sensorTariff')}</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={entry.tariff}
+              onChange={e => onChangeTariff(idx, e.target.value)}
+              className="w-20 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+          </div>
+          <button
+            onClick={() => onRemove(idx)}
+            className="text-gray-400 hover:text-red-500 text-lg leading-none px-1 transition-colors"
+            title="Remove"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={onAdd}
+        className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 transition-colors"
+      >
+        + {addLabel}
+      </button>
+    </div>
+  )
+}
+
+function CSVTab({ t, onDataReady, defaultBuyPrice, defaultSellPrice }) {
   const [dragging, setDragging] = useState(false)
   const [rawData, setRawData] = useState(null)
-  const [mapping, setMapping] = useState({ solar: '', gridImport: '', gridExport: '' })
+  const [mapping, setMapping] = useState({ solar: '', gridImport: [], gridExport: [] })
   const [error, setError] = useState('')
   const [fileName, setFileName] = useState('')
   const fileRef = useRef()
@@ -25,7 +70,12 @@ function CSVTab({ t, onDataReady }) {
         }
         const parsed = parseCSV(results.data)
         setRawData(parsed)
-        setMapping(parsed.suggestedMapping)
+        const sm = parsed.suggestedMapping
+        setMapping({
+          solar: sm.solar || '',
+          gridImport: sm.gridImport ? [{ id: sm.gridImport, tariff: defaultBuyPrice }] : [],
+          gridExport: sm.gridExport ? [{ id: sm.gridExport, tariff: defaultSellPrice }] : [],
+        })
       },
     })
   }
@@ -38,16 +88,55 @@ function CSVTab({ t, onDataReady }) {
   }
 
   function handleConfirm() {
-    if (!mapping.gridImport && !mapping.solar) {
+    const hasImport = mapping.gridImport.some(e => e.id)
+    const hasSolar = mapping.solar
+    if (!hasImport && !hasSolar) {
       setError(t('mappingError'))
       return
     }
-    const hourlyData = applyMapping(rawData.byId, mapping)
+    const mappingForParser = {
+      solar: mapping.solar,
+      gridImport: mapping.gridImport.map(e => e.id).filter(Boolean),
+      gridExport: mapping.gridExport.map(e => e.id).filter(Boolean),
+    }
+    const hourlyData = applyMapping(rawData.byId, mappingForParser)
     if (hourlyData.length === 0) {
       setError('No valid hourly data could be extracted. Check the column mapping.')
       return
     }
-    onDataReady(hourlyData)
+    const sensorTariffs = Object.fromEntries([
+      ...mapping.gridImport.filter(e => e.id).map(e => [e.id, parseFloat(e.tariff) || 0]),
+      ...mapping.gridExport.filter(e => e.id).map(e => [e.id, parseFloat(e.tariff) || 0]),
+    ])
+    onDataReady(hourlyData, sensorTariffs)
+  }
+
+  function addSensor(category, defaultTariff) {
+    setMapping(m => ({
+      ...m,
+      [category]: [...m[category], { id: '', tariff: defaultTariff }],
+    }))
+  }
+
+  function removeSensor(category, idx) {
+    setMapping(m => ({
+      ...m,
+      [category]: m[category].filter((_, i) => i !== idx),
+    }))
+  }
+
+  function changeSensor(category, idx, newId) {
+    setMapping(m => ({
+      ...m,
+      [category]: m[category].map((e, i) => i === idx ? { ...e, id: newId } : e),
+    }))
+  }
+
+  function changeTariff(category, idx, val) {
+    setMapping(m => ({
+      ...m,
+      [category]: m[category].map((e, i) => i === idx ? { ...e, tariff: val } : e),
+    }))
   }
 
   const previewRows = rawData ? Object.values(rawData.byId)[0]?.slice(0, 5) ?? [] : []
@@ -117,27 +206,52 @@ function CSVTab({ t, onDataReady }) {
           </div>
 
           <div>
-            <h3 className="font-semibold text-gray-800 mb-3">{t('columnMapping')}</h3>
-            <div className="grid gap-4 md:grid-cols-3">
-              {[
-                { key: 'solar', label: t('mapSolar'), emoji: '🌞' },
-                { key: 'gridImport', label: t('mapGridImport'), emoji: '⬇️' },
-                { key: 'gridExport', label: t('mapGridExport'), emoji: '⬆️' },
-              ].map(({ key, label, emoji }) => (
-                <div key={key}>
-                  <label className="block text-sm text-gray-600 mb-1">{emoji} {label}</label>
-                  <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    value={mapping[key]}
-                    onChange={e => setMapping(m => ({ ...m, [key]: e.target.value }))}
-                  >
-                    <option value="">{t('noSensor')}</option>
-                    {rawData.sensorIds.map(id => (
-                      <option key={id} value={id}>{id}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+            <h3 className="font-semibold text-gray-800 mb-4">{t('columnMapping')}</h3>
+            <div className="space-y-5">
+              {/* Solar — single sensor, no tariff */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">🌞 {t('mapSolar')}</label>
+                <select
+                  className="w-full md:w-80 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  value={mapping.solar}
+                  onChange={e => setMapping(m => ({ ...m, solar: e.target.value }))}
+                >
+                  <option value="">{t('noSensor')}</option>
+                  {rawData.sensorIds.map(id => (
+                    <option key={id} value={id}>{id}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Grid Import — multiple sensors with tariffs */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">⬇️ {t('mapGridImport')}</label>
+                <SensorList
+                  sensors={mapping.gridImport}
+                  sensorIds={rawData.sensorIds}
+                  onAdd={() => addSensor('gridImport', defaultBuyPrice)}
+                  onRemove={idx => removeSensor('gridImport', idx)}
+                  onChangeSensor={(idx, id) => changeSensor('gridImport', idx, id)}
+                  onChangeTariff={(idx, val) => changeTariff('gridImport', idx, val)}
+                  t={t}
+                  addLabel={t('addSensor')}
+                />
+              </div>
+
+              {/* Grid Export — multiple sensors with tariffs */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">⬆️ {t('mapGridExport')}</label>
+                <SensorList
+                  sensors={mapping.gridExport}
+                  sensorIds={rawData.sensorIds}
+                  onAdd={() => addSensor('gridExport', defaultSellPrice)}
+                  onRemove={idx => removeSensor('gridExport', idx)}
+                  onChangeSensor={(idx, id) => changeSensor('gridExport', idx, id)}
+                  onChangeTariff={(idx, val) => changeTariff('gridExport', idx, val)}
+                  t={t}
+                  addLabel={t('addSensor')}
+                />
+              </div>
             </div>
           </div>
 
@@ -153,7 +267,7 @@ function CSVTab({ t, onDataReady }) {
   )
 }
 
-export default function CSVImport({ lang, t, onDataReady }) {
+export default function CSVImport({ t, onDataReady, defaultBuyPrice, defaultSellPrice }) {
   const [activeTab, setActiveTab] = useState('csv')
 
   const tabs = [
@@ -180,8 +294,15 @@ export default function CSVImport({ lang, t, onDataReady }) {
         ))}
       </div>
 
-      {activeTab === 'csv' && <CSVTab t={t} onDataReady={onDataReady} />}
-      {activeTab === 'ha' && <HAImport t={t} onDataReady={onDataReady} />}
+      {activeTab === 'csv' && (
+        <CSVTab
+          t={t}
+          onDataReady={onDataReady}
+          defaultBuyPrice={defaultBuyPrice}
+          defaultSellPrice={defaultSellPrice}
+        />
+      )}
+      {activeTab === 'ha' && <HAImport t={t} onDataReady={onDataReady} defaultBuyPrice={defaultBuyPrice} defaultSellPrice={defaultSellPrice} />}
     </div>
   )
 }

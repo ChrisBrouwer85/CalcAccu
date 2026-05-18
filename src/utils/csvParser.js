@@ -58,7 +58,6 @@ function computeDeltas(sensorRows) {
 
   const result = []
   let prevSum = null
-  let prevTimestamp = null
 
   for (const row of sorted) {
     const ts = getTimestamp(row)
@@ -76,32 +75,74 @@ function computeDeltas(sensorRows) {
     }
 
     prevSum = val
-    prevTimestamp = ts
   }
   return result
 }
 
 export function applyMapping(byId, mapping) {
   const solarRows = mapping.solar ? computeDeltas(byId[mapping.solar] || []) : []
-  const importRows = mapping.gridImport ? computeDeltas(byId[mapping.gridImport] || []) : []
-  const exportRows = mapping.gridExport ? computeDeltas(byId[mapping.gridExport] || []) : []
 
-  // Index by hour key
+  // Support both string (legacy) and array of sensor IDs
+  const importIds = Array.isArray(mapping.gridImport)
+    ? mapping.gridImport.filter(Boolean)
+    : (mapping.gridImport ? [mapping.gridImport] : [])
+
+  const exportIds = Array.isArray(mapping.gridExport)
+    ? mapping.gridExport.filter(Boolean)
+    : (mapping.gridExport ? [mapping.gridExport] : [])
+
+  // Compute deltas per sensor
+  const importSeriesBySensor = {}
+  for (const id of importIds) {
+    importSeriesBySensor[id] = computeDeltas(byId[id] || [])
+  }
+  const exportSeriesBySensor = {}
+  for (const id of exportIds) {
+    exportSeriesBySensor[id] = computeDeltas(byId[id] || [])
+  }
+
+  // Build lookup maps per sensor
+  const importMapBySensor = {}
+  for (const [id, rows] of Object.entries(importSeriesBySensor)) {
+    importMapBySensor[id] = new Map(rows.map(r => [r.timestamp.toISOString(), r.kwh]))
+  }
+  const exportMapBySensor = {}
+  for (const [id, rows] of Object.entries(exportSeriesBySensor)) {
+    exportMapBySensor[id] = new Map(rows.map(r => [r.timestamp.toISOString(), r.kwh]))
+  }
+
   const solarMap = new Map(solarRows.map(r => [r.timestamp.toISOString(), r.kwh]))
-  const importMap = new Map(importRows.map(r => [r.timestamp.toISOString(), r.kwh]))
-  const exportMap = new Map(exportRows.map(r => [r.timestamp.toISOString(), r.kwh]))
 
-  // Use import timestamps as the reference timeline (always required)
-  const referenceRows = importRows.length ? importRows : solarRows
-  const hourlyData = referenceRows.map(r => {
+  // Reference timeline: first import sensor, or solar
+  const firstImportRows = importIds.length > 0 ? importSeriesBySensor[importIds[0]] : []
+  const referenceRows = firstImportRows.length ? firstImportRows : solarRows
+
+  return referenceRows.map(r => {
     const key = r.timestamp.toISOString()
+
+    const sensorImport = {}
+    let totalImport = 0
+    for (const id of importIds) {
+      const kwh = importMapBySensor[id]?.get(key) ?? 0
+      sensorImport[id] = kwh
+      totalImport += kwh
+    }
+
+    const sensorExport = {}
+    let totalExport = 0
+    for (const id of exportIds) {
+      const kwh = exportMapBySensor[id]?.get(key) ?? 0
+      sensorExport[id] = kwh
+      totalExport += kwh
+    }
+
     return {
       timestamp: r.timestamp,
       solar: solarMap.get(key) ?? 0,
-      gridImport: importMap.get(key) ?? 0,
-      gridExport: exportMap.get(key) ?? 0,
+      gridImport: totalImport,
+      gridExport: totalExport,
+      sensorImport,
+      sensorExport,
     }
   })
-
-  return hourlyData
 }

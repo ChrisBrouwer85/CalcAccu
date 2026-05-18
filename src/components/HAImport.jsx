@@ -14,14 +14,59 @@ function defaultDateRange() {
   }
 }
 
-export default function HAImport({ t, onDataReady }) {
+function SensorList({ sensors, entityIds, onAdd, onRemove, onChangeSensor, onChangeTariff, t, addLabel, selectPlaceholder }) {
+  return (
+    <div className="space-y-2">
+      {sensors.map((entry, idx) => (
+        <div key={idx} className="flex gap-2 items-center">
+          <select
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+            value={entry.id}
+            onChange={e => onChangeSensor(idx, e.target.value)}
+          >
+            <option value="">{selectPlaceholder}</option>
+            {entityIds.map(id => (
+              <option key={id} value={id}>{id}</option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-xs text-gray-500">{t('sensorTariff')}</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={entry.tariff}
+              onChange={e => onChangeTariff(idx, e.target.value)}
+              className="w-20 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+            />
+          </div>
+          <button
+            onClick={() => onRemove(idx)}
+            className="text-gray-400 hover:text-red-500 text-lg leading-none px-1 transition-colors"
+            title="Remove"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={onAdd}
+        className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 transition-colors"
+      >
+        + {addLabel}
+      </button>
+    </div>
+  )
+}
+
+export default function HAImport({ t, onDataReady, defaultBuyPrice, defaultSellPrice }) {
   const [url, setUrl] = useState(() => loadHaUrl() ?? DEFAULT_URL)
   const [token, setToken] = useState(() => loadHaToken() ?? '')
   const [showToken, setShowToken] = useState(false)
   const [status, setStatus] = useState('idle') // idle | connecting | connected | error
   const [errorMsg, setErrorMsg] = useState('')
   const [entityIds, setEntityIds] = useState([])
-  const [mapping, setMapping] = useState({ solar: '', gridImport: '', gridExport: '' })
+  const [mapping, setMapping] = useState({ solar: '', gridImport: [], gridExport: [] })
   const [dateRange, setDateRange] = useState(defaultDateRange)
   const [fetchStatus, setFetchStatus] = useState('idle') // idle | fetching | done | error
   const [fetchedRows, setFetchedRows] = useState(0)
@@ -55,7 +100,12 @@ export default function HAImport({ t, onDataReady }) {
       setEntityIds(ids)
 
       const detected = autoDetectSensors(ids)
-      setMapping(detected)
+      // Apply default tariffs from props
+      setMapping({
+        solar: detected.solar,
+        gridImport: detected.gridImport.map(e => ({ ...e, tariff: defaultBuyPrice ?? e.tariff })),
+        gridExport: detected.gridExport.map(e => ({ ...e, tariff: defaultSellPrice ?? e.tariff })),
+      })
     } catch (e) {
       setStatus('error')
       setErrorMsg(e.message)
@@ -75,7 +125,9 @@ export default function HAImport({ t, onDataReady }) {
 
   async function handleFetch() {
     if (!haRef.current) return
-    const sensorIds = [mapping.solar, mapping.gridImport, mapping.gridExport].filter(Boolean)
+    const importIds = mapping.gridImport.map(e => e.id).filter(Boolean)
+    const exportIds = mapping.gridExport.map(e => e.id).filter(Boolean)
+    const sensorIds = [mapping.solar, ...importIds, ...exportIds].filter(Boolean)
     if (!sensorIds.length) return
 
     setFetchStatus('fetching')
@@ -95,8 +147,43 @@ export default function HAImport({ t, onDataReady }) {
   }
 
   function handleUse() {
-    if (hourlyData?.length) onDataReady(hourlyData)
+    if (!hourlyData?.length) return
+    const sensorTariffs = Object.fromEntries([
+      ...mapping.gridImport.filter(e => e.id).map(e => [e.id, parseFloat(e.tariff) || 0]),
+      ...mapping.gridExport.filter(e => e.id).map(e => [e.id, parseFloat(e.tariff) || 0]),
+    ])
+    onDataReady(hourlyData, sensorTariffs)
   }
+
+  function addSensor(category, defaultTariff) {
+    setMapping(m => ({
+      ...m,
+      [category]: [...m[category], { id: '', tariff: defaultTariff }],
+    }))
+  }
+
+  function removeSensor(category, idx) {
+    setMapping(m => ({
+      ...m,
+      [category]: m[category].filter((_, i) => i !== idx),
+    }))
+  }
+
+  function changeSensor(category, idx, newId) {
+    setMapping(m => ({
+      ...m,
+      [category]: m[category].map((e, i) => i === idx ? { ...e, id: newId } : e),
+    }))
+  }
+
+  function changeTariff(category, idx, val) {
+    setMapping(m => ({
+      ...m,
+      [category]: m[category].map((e, i) => i === idx ? { ...e, tariff: val } : e),
+    }))
+  }
+
+  const hasImportOrSolar = mapping.gridImport.some(e => e.id) || mapping.solar
 
   return (
     <div className="space-y-5">
@@ -176,30 +263,57 @@ export default function HAImport({ t, onDataReady }) {
       {status === 'connected' && (
         <div className="border-t border-gray-100 pt-5 space-y-5">
           <div>
-            <h3 className="font-semibold text-gray-800 mb-3">{t('haMapSensors')}</h3>
+            <h3 className="font-semibold text-gray-800 mb-4">{t('haMapSensors')}</h3>
             {entityIds.length === 0 ? (
               <p className="text-sm text-amber-600">{t('haNoKwhSensors')}</p>
             ) : (
-              <div className="grid gap-4 md:grid-cols-3">
-                {[
-                  { key: 'solar', label: t('mapSolar'), emoji: '🌞' },
-                  { key: 'gridImport', label: t('mapGridImport'), emoji: '⬇️' },
-                  { key: 'gridExport', label: t('mapGridExport'), emoji: '⬆️' },
-                ].map(({ key, label, emoji }) => (
-                  <div key={key}>
-                    <label className="block text-sm text-gray-600 mb-1">{emoji} {label}</label>
-                    <select
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
-                      value={mapping[key]}
-                      onChange={e => setMapping(m => ({ ...m, [key]: e.target.value }))}
-                    >
-                      <option value="">{t('haSelectSensor')}</option>
-                      {entityIds.map(id => (
-                        <option key={id} value={id}>{id}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
+              <div className="space-y-5">
+                {/* Solar — single sensor */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">🌞 {t('mapSolar')}</label>
+                  <select
+                    className="w-full md:w-80 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    value={mapping.solar}
+                    onChange={e => setMapping(m => ({ ...m, solar: e.target.value }))}
+                  >
+                    <option value="">{t('haSelectSensor')}</option>
+                    {entityIds.map(id => (
+                      <option key={id} value={id}>{id}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Grid Import — multiple sensors with tariffs */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">⬇️ {t('mapGridImport')}</label>
+                  <SensorList
+                    sensors={mapping.gridImport}
+                    entityIds={entityIds}
+                    onAdd={() => addSensor('gridImport', defaultBuyPrice ?? 0.29)}
+                    onRemove={idx => removeSensor('gridImport', idx)}
+                    onChangeSensor={(idx, id) => changeSensor('gridImport', idx, id)}
+                    onChangeTariff={(idx, val) => changeTariff('gridImport', idx, val)}
+                    t={t}
+                    addLabel={t('addSensor')}
+                    selectPlaceholder={t('haSelectSensor')}
+                  />
+                </div>
+
+                {/* Grid Export — multiple sensors with tariffs */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">⬆️ {t('mapGridExport')}</label>
+                  <SensorList
+                    sensors={mapping.gridExport}
+                    entityIds={entityIds}
+                    onAdd={() => addSensor('gridExport', defaultSellPrice ?? 0.10)}
+                    onRemove={idx => removeSensor('gridExport', idx)}
+                    onChangeSensor={(idx, id) => changeSensor('gridExport', idx, id)}
+                    onChangeTariff={(idx, val) => changeTariff('gridExport', idx, val)}
+                    t={t}
+                    addLabel={t('addSensor')}
+                    selectPlaceholder={t('haSelectSensor')}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -234,7 +348,7 @@ export default function HAImport({ t, onDataReady }) {
           {/* Fetch button */}
           <button
             onClick={handleFetch}
-            disabled={(!mapping.gridImport && !mapping.solar) || fetchStatus === 'fetching'}
+            disabled={!hasImportOrSolar || fetchStatus === 'fetching'}
             className="bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors"
           >
             {fetchStatus === 'fetching' ? t('haFetching') : t('haFetchData')}
