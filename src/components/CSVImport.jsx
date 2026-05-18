@@ -1,8 +1,9 @@
 import Papa from 'papaparse'
 import { useRef, useState } from 'react'
 import { parseCSV, applyMapping } from '../utils/csvParser.js'
+import HAImport from './HAImport.jsx'
 
-export default function CSVImport({ lang, t, onDataReady }) {
+function CSVTab({ t, onDataReady }) {
   const [dragging, setDragging] = useState(false)
   const [rawData, setRawData] = useState(null)
   const [mapping, setMapping] = useState({ solar: '', gridImport: '', gridExport: '' })
@@ -49,15 +50,11 @@ export default function CSVImport({ lang, t, onDataReady }) {
     onDataReady(hourlyData)
   }
 
-  const previewRows = rawData
-    ? Object.values(rawData.byId)[0]?.slice(0, 5) ?? []
-    : []
-
+  const previewRows = rawData ? Object.values(rawData.byId)[0]?.slice(0, 5) ?? [] : []
   const previewHeaders = previewRows.length > 0 ? Object.keys(previewRows[0]) : []
 
   return (
     <div className="space-y-6">
-      {/* Drop zone */}
       <div
         className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
           dragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 bg-white'
@@ -67,12 +64,10 @@ export default function CSVImport({ lang, t, onDataReady }) {
         onDrop={handleDrop}
         onClick={() => fileRef.current.click()}
       >
-        <div className="text-4xl mb-3">☀️</div>
+        <div className="text-4xl mb-3">📄</div>
         <p className="text-gray-600 font-medium">{t('dropCSV')}</p>
         <p className="text-gray-400 text-sm mt-1">{t('orClick')}</p>
-        {fileName && (
-          <p className="mt-3 text-blue-600 font-medium text-sm">📄 {fileName}</p>
-        )}
+        {fileName && <p className="mt-3 text-blue-600 font-medium text-sm">📄 {fileName}</p>}
         <input
           ref={fileRef}
           type="file"
@@ -88,13 +83,11 @@ export default function CSVImport({ lang, t, onDataReady }) {
         </div>
       )}
 
-      {/* CSV Preview */}
       {rawData && (
         <>
           <div>
             <h3 className="font-semibold text-gray-800 mb-2">{t('csvPreview')}</h3>
             <p className="text-sm text-gray-500 mb-3">
-              {t('dataLoaded').replace('{n}', '') || ''}{' '}
               {Object.values(rawData.byId).reduce((s, a) => s + a.length, 0)} {t('dataLoaded')}
             </p>
             {previewRows.length > 0 && (
@@ -103,9 +96,7 @@ export default function CSVImport({ lang, t, onDataReady }) {
                   <thead className="bg-gray-50">
                     <tr>
                       {previewHeaders.slice(0, 8).map(h => (
-                        <th key={h} className="px-3 py-2 text-left text-gray-600 font-medium border-b border-gray-200">
-                          {h}
-                        </th>
+                        <th key={h} className="px-3 py-2 text-left text-gray-600 font-medium border-b border-gray-200">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -125,7 +116,6 @@ export default function CSVImport({ lang, t, onDataReady }) {
             )}
           </div>
 
-          {/* Column mapping */}
           <div>
             <h3 className="font-semibold text-gray-800 mb-3">{t('columnMapping')}</h3>
             <div className="grid gap-4 md:grid-cols-3">
@@ -135,9 +125,7 @@ export default function CSVImport({ lang, t, onDataReady }) {
                 { key: 'gridExport', label: t('mapGridExport'), emoji: '⬆️' },
               ].map(({ key, label, emoji }) => (
                 <div key={key}>
-                  <label className="block text-sm text-gray-600 mb-1">
-                    {emoji} {label}
-                  </label>
+                  <label className="block text-sm text-gray-600 mb-1">{emoji} {label}</label>
                   <select
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
                     value={mapping[key]}
@@ -161,6 +149,39 @@ export default function CSVImport({ lang, t, onDataReady }) {
           </button>
         </>
       )}
+    </div>
+  )
+}
+
+export default function CSVImport({ lang, t, onDataReady }) {
+  const [activeTab, setActiveTab] = useState('csv')
+
+  const tabs = [
+    { key: 'csv', label: t('csvTab'), icon: '📄' },
+    { key: 'ha', label: t('haTab'), icon: '🏠' },
+  ]
+
+  return (
+    <div className="space-y-5">
+      {/* Tab switcher */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === tab.key
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <span>{tab.icon}</span> {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'csv' && <CSVTab t={t} onDataReady={onDataReady} />}
+      {activeTab === 'ha' && <HAImport t={t} onDataReady={onDataReady} />}
     </div>
   )
 }

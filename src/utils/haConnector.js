@@ -1,0 +1,157 @@
+import { detectColumnMapping } from './csvParser.js'
+
+export class HAWebSocket {
+  constructor(url, token) {
+    this.url = url.replace(/\/$/, '')
+    this.token = token
+    this.ws = null
+    this.msgId = 1
+    this.pending = new Map() // id → { resolve, reject }
+  }
+
+  connect() {
+    return new Promise((resolve, reject) => {
+      const wsUrl = this.url
+        .replace(/^http/, 'ws')
+        .replace(/^https/, 'wss') + '/api/websocket'
+
+      try {
+        this.ws = new WebSocket(wsUrl)
+      } catch (e) {
+        reject(new Error('Failed to open WebSocket: ' + e.message))
+        return
+      }
+
+      const onOpen = () => {} // auth_required arrives as first message
+
+      const onMessage = (evt) => {
+        let msg
+        try { msg = JSON.parse(evt.data) } catch { return }
+
+        if (msg.type === 'auth_required') {
+          this.ws.send(JSON.stringify({ type: 'auth', access_token: this.token }))
+          return
+        }
+
+        if (msg.type === 'auth_ok') {
+          this.ws.removeEventListener('message', onMessage)
+          this.ws.addEventListener('message', this._onMessage.bind(this))
+          resolve()
+          return
+        }
+
+        if (msg.type === 'auth_invalid') {
+          this.ws.close()
+          reject(new Error('Invalid access token'))
+          return
+        }
+      }
+
+      const onError = () => reject(new Error('WebSocket connection error'))
+      const onClose = () => reject(new Error('Connection closed before auth'))
+
+      this.ws.addEventListener('open', onOpen)
+      this.ws.addEventListener('message', onMessage)
+      this.ws.addEventListener('error', onError)
+      this.ws.addEventListener('close', onClose)
+    })
+  }
+
+  _onMessage(evt) {
+    let msg
+    try { msg = JSON.parse(evt.data) } catch { return }
+    const p = this.pending.get(msg.id)
+    if (!p) return
+    this.pending.delete(msg.id)
+    if (msg.success === false) {
+      p.reject(new Error(msg.error?.message ?? 'HA command error'))
+    } else {
+      p.resolve(msg.result)
+    }
+  }
+
+  _send(payload) {
+    const id = this.msgId++
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject })
+      this.ws.send(JSON.stringify({ ...payload, id }))
+    })
+  }
+
+  async getStates() {
+    return this._send({ type: 'get_states' })
+  }
+
+  async fetchStatistics(sensorIds, startISO, endISO) {
+    return this._send({
+      type: 'history/statistics_during_period',
+      start_time: startISO,
+      end_time: endISO,
+      statistic_ids: sensorIds,
+      period: 'hour',
+      types: ['sum', 'state'],
+    })
+  }
+
+  disconnect() {
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
+  }
+}
+
+export function getEnergyEntities(states) {
+  return states
+    .filter(s => s.attributes?.unit_of_measurement === 'kWh')
+    .map(s => s.entity_id)
+    .sort()
+}
+
+export function normalizeHAStats(rawStats, mapping) {
+  // rawStats: { "sensor.foo": [{start: epochMs, sum: number|null, state: number|null}] }
+  // Returns HourlyRecord[] same as applyMapping() in csvParser.js
+
+  function extractSeries(sensorId) {
+    const rows = rawStats[sensorId]
+    if (!rows?.length) return []
+    const sorted = [...rows].sort((a, b) => a.start - b.start)
+    const result = []
+    let prevSum = null
+    for (const row of sorted) {
+      const val = row.sum ?? row.state ?? null
+      if (val === null) continue
+      const ts = new Date(row.start)
+      if (prevSum !== null) {
+        const delta = Math.max(0, val - prevSum)
+        result.push({ timestamp: ts, kwh: delta })
+      }
+      prevSum = val
+    }
+    return result
+  }
+
+  const solarSeries = mapping.solar ? extractSeries(mapping.solar) : []
+  const importSeries = mapping.gridImport ? extractSeries(mapping.gridImport) : []
+  const exportSeries = mapping.gridExport ? extractSeries(mapping.gridExport) : []
+
+  const solarMap = new Map(solarSeries.map(r => [r.timestamp.toISOString(), r.kwh]))
+  const importMap = new Map(importSeries.map(r => [r.timestamp.toISOString(), r.kwh]))
+  const exportMap = new Map(exportSeries.map(r => [r.timestamp.toISOString(), r.kwh]))
+
+  const reference = importSeries.length ? importSeries : solarSeries
+  return reference.map(r => {
+    const key = r.timestamp.toISOString()
+    return {
+      timestamp: r.timestamp,
+      solar: solarMap.get(key) ?? 0,
+      gridImport: importMap.get(key) ?? 0,
+      gridExport: exportMap.get(key) ?? 0,
+    }
+  })
+}
+
+export function autoDetectSensors(entityIds) {
+  // Reuse same pattern logic from csvParser.js via detectColumnMapping
+  return detectColumnMapping(entityIds)
+}
