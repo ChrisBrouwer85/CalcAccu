@@ -1,5 +1,6 @@
 const KEYS = {
   haUrl: 'calcaccu:haUrl',
+  haToken: 'calcaccu:haToken',
   hourlyData: 'calcaccu:hourlyData',
   savedSimulations: 'calcaccu:savedSimulations',
 }
@@ -21,6 +22,24 @@ export function saveHaUrl(url) {
     localStorage.setItem(KEYS.haUrl, url)
   } catch (e) {
     console.warn('CalcAccu: could not save HA URL', e)
+  }
+}
+
+// ── HA Token ──────────────────────────────────────────────────────────────────
+
+export function loadHaToken() {
+  try {
+    return localStorage.getItem(KEYS.haToken)
+  } catch {
+    return null
+  }
+}
+
+export function saveHaToken(token) {
+  try {
+    localStorage.setItem(KEYS.haToken, token)
+  } catch (e) {
+    console.warn('CalcAccu: could not save HA token', e)
   }
 }
 
