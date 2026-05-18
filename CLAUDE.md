@@ -28,6 +28,15 @@ See [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) for the full directory layout
 - **Simulation is pure**: `runSimulation` in `src/utils/simulation.js` is a pure function. Keep it free of side effects and imports beyond `energyPrices.js`.
 - **State lives in App**: all shared state (`hourlyData`, `accuConfig`, `priceConfig`, `homePriority`, `simulationResults`, `activeStep`) is owned by `App.jsx`. Child components receive state via props and call `onChange` callbacks — they do not manage their own copies.
 
+## Branching
+
+Always create new branches from `main`:
+```bash
+git fetch origin main
+git checkout -b <branch-name> origin/main
+```
+Never branch from another Claude feature branch. If the current HEAD is not on `main`, explicitly base the new branch on `origin/main`. PRs must always target `main`.
+
 ## Dev workflow
 
 ```bash
