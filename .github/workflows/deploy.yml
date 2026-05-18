@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, claude/home-assistant-accu-calculator-bNYUm]
+    branches: [main, claude/home-assistant-accu-calculator-bNYUm, claude/add-website-authentication-OIn70]
   workflow_dispatch:
 
 permissions:
