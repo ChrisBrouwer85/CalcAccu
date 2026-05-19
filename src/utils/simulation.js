@@ -107,8 +107,9 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     const rank = dayStats ? dayStats.priceRank(buyPrice) : 0
     const allSame = dayStats ? dayStats.allSame : true
 
-    // How much battery to keep in reserve for home use
-    const reserve = capacityKwh * (1 - sellFraction)
+    // Reserve: keep (1-sellFraction) of currently stored energy for home use.
+    // Using battery (not capacityKwh) so a large undercharged battery still sells.
+    const reserve = battery * (1 - sellFraction)
 
     // Peak: top sellFraction of the day's prices → sell from battery
     // Strict > so the cheapest hour is never treated as peak (handles sellFraction=1 edge case)
