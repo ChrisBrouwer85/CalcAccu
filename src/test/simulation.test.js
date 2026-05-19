@@ -240,7 +240,7 @@ describe('runSimulation – smart EMS', () => {
     expect(result.hourly[1].batteryDischarge).toBeGreaterThan(0)
   })
 
-  it('cheap hour + allowGridCharge: tops up battery from grid', () => {
+  it('allowGridChargeCheap: tops up battery during cheapest hours', () => {
     // 3 hours: two cheap, one expensive; battery starts empty, no solar
     const ts0 = '2024-06-01T00:00:00Z'
     const ts1 = '2024-06-01T01:00:00Z'
@@ -251,11 +251,72 @@ describe('runSimulation – smart EMS', () => {
       { timestamp: ts1, price: 0.12 },
       { timestamp: ts2, price: 0.50 },
     ])
-    const strategy = { sellFraction: 0.5, allowGridChargeCheap: true }
-    const result = runSimulation(data, BATTERY_10KWH, strategy, map, 0.10)
-    // Cheap hours (rank <= sellFraction*0.5 = 0.25): battery should charge from grid
+    const strategy = { sellFraction: 0.5, allowGridChargeCheap: true, allowGridChargeNegative: false }
+    const result = runSimulation(data, BATTERY_10KWH, strategy, map, null)
+    // ts0 rank=0 < sellFraction*0.5=0.25 → isCheapHour, battery charges from grid
     expect(result.hourly[0].batteryCharge).toBeGreaterThan(0)
     expect(result.hourly[0].gridImport).toBeGreaterThan(0)
+    // ts2 is peak (rank=1 > 0.5) → no grid charge
+    expect(result.hourly[2].gridImport).toBe(0)
+  })
+
+  it('allowGridChargeNegative: charges from grid when price is below zero', () => {
+    const ts0 = '2024-06-01T00:00:00Z'
+    const ts1 = '2024-06-01T12:00:00Z'
+    const data = [empty(ts0), empty(ts1)]
+    const map = buildMap([
+      { timestamp: ts0, price: -0.05 },
+      { timestamp: ts1, price:  0.40 },
+    ])
+    const strategy = { sellFraction: 0.5, allowGridChargeNegative: true, allowGridChargeCheap: false }
+    const result = runSimulation(data, BATTERY_10KWH, strategy, map, null)
+    expect(result.hourly[0].batteryCharge).toBeGreaterThan(0)
+    expect(result.hourly[0].gridImport).toBeGreaterThan(0)
+  })
+
+  it('allowGridChargeNegative=false: does not charge during negative-price hour', () => {
+    const ts0 = '2024-06-01T00:00:00Z'
+    const ts1 = '2024-06-01T12:00:00Z'
+    const data = [empty(ts0), empty(ts1)]
+    const map = buildMap([
+      { timestamp: ts0, price: -0.05 },
+      { timestamp: ts1, price:  0.40 },
+    ])
+    const strategy = { sellFraction: 0.5, allowGridChargeNegative: false, allowGridChargeCheap: false }
+    const result = runSimulation(data, BATTERY_10KWH, strategy, map, null)
+    expect(result.hourly[0].batteryCharge).toBe(0)
+    expect(result.hourly[0].gridImport).toBe(0)
+  })
+
+  it('allowGridChargeNegative fires even when all prices are the same negative value', () => {
+    // allSame=true blocks allowGridChargeCheap but must not block allowGridChargeNegative
+    const ts0 = '2024-06-01T00:00:00Z'
+    const ts1 = '2024-06-01T12:00:00Z'
+    const data = [empty(ts0), empty(ts1)]
+    const map = buildMap([
+      { timestamp: ts0, price: -0.05 },
+      { timestamp: ts1, price: -0.05 },
+    ])
+    const negStrategy   = { sellFraction: 0.5, allowGridChargeNegative: true,  allowGridChargeCheap: false }
+    const cheapStrategy = { sellFraction: 0.5, allowGridChargeNegative: false, allowGridChargeCheap: true }
+    const negResult   = runSimulation(data, BATTERY_10KWH, negStrategy,   map, null)
+    const cheapResult = runSimulation(data, BATTERY_10KWH, cheapStrategy, map, null)
+    // negative flag bypasses allSame → charges
+    expect(negResult.hourly[0].batteryCharge).toBeGreaterThan(0)
+    // cheap flag is blocked by allSame → no charge
+    expect(cheapResult.hourly[0].batteryCharge).toBe(0)
+  })
+
+  it('allowGridChargeCheap does not fire when all prices are the same', () => {
+    const data = [
+      makeHour('2024-06-01T00:00:00Z', 0, 0, 0),
+      makeHour('2024-06-01T12:00:00Z', 0, 0, 0),
+    ]
+    const map = flatPriceMap(data, 0.20)  // allSame=true
+    const strategy = { sellFraction: 0.5, allowGridChargeNegative: false, allowGridChargeCheap: true }
+    const result = runSimulation(data, BATTERY_10KWH, strategy, map, null)
+    expect(result.hourly[0].batteryCharge).toBe(0)
+    expect(result.hourly[0].gridImport).toBe(0)
   })
 
   it('all-same prices: no peak hours triggered, battery only serves home consumption', () => {
