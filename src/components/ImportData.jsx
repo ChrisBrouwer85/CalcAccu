@@ -7,7 +7,7 @@ function SensorList({ sensors, sensorIds, onAdd, onRemove, onChangeSensor, onCha
   return (
     <div className="space-y-2">
       {sensors.map((entry, idx) => (
-        <div key={idx} className="flex gap-2 items-center">
+        <div key={idx} className="flex flex-col sm:flex-row gap-2">
           <select
             className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300"
             value={entry.id}
@@ -18,8 +18,8 @@ function SensorList({ sensors, sensorIds, onAdd, onRemove, onChangeSensor, onCha
               <option key={id} value={id}>{id}</option>
             ))}
           </select>
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-xs text-gray-500">{t('sensorTariff')}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 shrink-0">{t('sensorTariff')}</span>
             <input
               type="number"
               step="0.01"
@@ -28,14 +28,14 @@ function SensorList({ sensors, sensorIds, onAdd, onRemove, onChangeSensor, onCha
               onChange={e => onChangeTariff(idx, e.target.value)}
               className="w-20 border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
+            <button
+              onClick={() => onRemove(idx)}
+              className="text-gray-400 hover:text-red-500 text-lg leading-none px-1 transition-colors ml-auto sm:ml-0"
+              title="Remove"
+            >
+              ×
+            </button>
           </div>
-          <button
-            onClick={() => onRemove(idx)}
-            className="text-gray-400 hover:text-red-500 text-lg leading-none px-1 transition-colors"
-            title="Remove"
-          >
-            ×
-          </button>
         </div>
       ))}
       <button
