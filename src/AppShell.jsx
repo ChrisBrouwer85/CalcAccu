@@ -4,6 +4,42 @@ import { auth } from './firebase.js'
 import { useAuth } from './context/AuthContext.jsx'
 import { useLang } from './context/LangContext.jsx'
 
+const AVATAR_COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f97316', '#ec4899', '#14b8a6']
+
+function avatarBg(name) {
+  return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]
+}
+
+function initials(name) {
+  return name.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join('').toUpperCase()
+}
+
+function UserAvatar({ user, size = 'md' }) {
+  if (!user) return null
+  const cls = size === 'sm' ? 'w-7 h-7 text-[10px]' : 'w-8 h-8 text-xs'
+  if (user.photoURL) {
+    return (
+      <img
+        src={user.photoURL}
+        alt={user.displayName || user.email}
+        title={user.displayName || user.email}
+        className={`${cls} rounded-full object-cover shrink-0`}
+        referrerPolicy="no-referrer"
+      />
+    )
+  }
+  const name = user.displayName || user.email?.split('@')[0] || '?'
+  return (
+    <div
+      className={`${cls} rounded-full flex items-center justify-center text-white font-bold select-none shrink-0`}
+      style={{ backgroundColor: avatarBg(name) }}
+      title={user.displayName || user.email}
+    >
+      {initials(name)}
+    </div>
+  )
+}
+
 function navLinkClass({ isActive }) {
   return [
     'flex-1 sm:flex-none text-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
@@ -33,6 +69,7 @@ export default function AppShell() {
 
             <div className="flex items-center gap-2 shrink-0 sm:hidden">
               <LangSwitcher lang={lang} setLang={setLang} />
+              <UserAvatar user={user} size="sm" />
               <SignOut t={t} />
             </div>
           </div>
@@ -44,10 +81,11 @@ export default function AppShell() {
             <NavLink to="/settings" className={navLinkClass}>{t('navSettings')}</NavLink>
           </nav>
 
-          {/* Right cluster on sm+: lang + email + signout */}
+          {/* Right cluster on sm+: lang + avatar + email + signout */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <LangSwitcher lang={lang} setLang={setLang} />
-            <div className="flex items-center gap-1.5 pl-2 border-l border-gray-200">
+            <div className="flex items-center gap-2 pl-2 border-l border-gray-200">
+              <UserAvatar user={user} />
               <span className="text-xs text-gray-500 max-w-32 truncate hidden md:block">{user?.email}</span>
               <SignOut t={t} />
             </div>
