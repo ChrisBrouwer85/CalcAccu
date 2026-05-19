@@ -6,10 +6,12 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth'
 import { auth } from '../firebase.js'
+import { useLang } from '../context/LangContext.jsx'
 
 const googleProvider = new GoogleAuthProvider()
 
-export default function AuthPage({ t, lang, setLang }) {
+export default function AuthPage() {
+  const { lang, setLang, t } = useLang()
   const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -26,6 +28,7 @@ export default function AuthPage({ t, lang, setLang }) {
       } else {
         await createUserWithEmailAndPassword(auth, email, password)
       }
+      // Navigation handled by router PublicOnly redirect
     } catch (err) {
       setError(friendlyError(err.code))
     } finally {

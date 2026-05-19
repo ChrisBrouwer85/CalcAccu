@@ -1,9 +1,8 @@
 import Papa from 'papaparse'
 import { useRef, useState } from 'react'
 import { parseCSV, applyMapping } from '../utils/csvParser.js'
-import HAImport from './HAImport.jsx'
 
-function CSVTab({ t, onDataReady }) {
+export default function CSVImport({ t, onDataReady, disabled }) {
   const [dragging, setDragging] = useState(false)
   const [rawData, setRawData] = useState(null)
   const [mapping, setMapping] = useState({ solar: '', gridImport: '', gridExport: '' })
@@ -143,45 +142,13 @@ function CSVTab({ t, onDataReady }) {
 
           <button
             onClick={handleConfirm}
-            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
+            disabled={disabled}
+            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t('confirmMapping')}
           </button>
         </>
       )}
-    </div>
-  )
-}
-
-export default function CSVImport({ lang, t, onDataReady }) {
-  const [activeTab, setActiveTab] = useState('csv')
-
-  const tabs = [
-    { key: 'csv', label: t('csvTab'), icon: '📄' },
-    { key: 'ha', label: t('haTab'), icon: '🏠' },
-  ]
-
-  return (
-    <div className="space-y-5">
-      {/* Tab switcher */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.key
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <span>{tab.icon}</span> {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'csv' && <CSVTab t={t} onDataReady={onDataReady} />}
-      {activeTab === 'ha' && <HAImport t={t} onDataReady={onDataReady} />}
     </div>
   )
 }
