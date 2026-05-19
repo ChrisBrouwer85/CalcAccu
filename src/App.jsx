@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { translations } from './i18n.js'
-import CSVImport from './components/CSVImport.jsx'
+import ImportData from './components/ImportData.jsx'
 import AccuConfig from './components/AccuConfig.jsx'
 import StrategyConfig from './components/StrategyConfig.jsx'
 import PriceConfig from './components/PriceConfig.jsx'
@@ -266,15 +266,8 @@ export default function App() {
               savedSims={savedSims}
               onLoad={handleLoadSim}
               onDelete={handleDeleteSim}
+              onNewImport={simulationResults ? resetApp : null}
             />
-            {simulationResults && (
-              <button
-                onClick={resetApp}
-                className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100"
-              >
-                {t('uploadAnother')}
-              </button>
-            )}
             <UserAvatar user={user} />
           </div>
         </div>
@@ -316,7 +309,7 @@ export default function App() {
           {activeStep === 1 && (
             <>
               <h2 className="text-xl font-bold text-gray-800 mb-4">1. {t('step1')}</h2>
-              <CSVImport
+              <ImportData
                 lang={lang}
                 t={t}
                 onDataReady={handleDataReady}

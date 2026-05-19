@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-export default function SavedSimulations({ t, savedSims, onLoad, onDelete }) {
+export default function SavedSimulations({ t, savedSims, onLoad, onDelete, onNewImport }) {
   const [open, setOpen] = useState(false)
   const panelRef = useRef(null)
 
@@ -46,6 +46,16 @@ export default function SavedSimulations({ t, savedSims, onLoad, onDelete }) {
           data-testid="saved-sims-panel"
           className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto"
         >
+          {onNewImport && (
+            <div className="px-4 py-3 border-b border-gray-100">
+              <button
+                onClick={() => { onNewImport(); setOpen(false) }}
+                className="w-full text-left text-sm text-gray-700 hover:text-gray-900 py-1"
+              >
+                {t('uploadAnother')}
+              </button>
+            </div>
+          )}
           <div className="px-4 py-3 border-b border-gray-100">
             <h3 className="font-semibold text-gray-800 text-sm">{t('savedSimsTitle')}</h3>
           </div>
