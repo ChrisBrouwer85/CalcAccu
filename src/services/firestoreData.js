@@ -15,25 +15,38 @@ import { db } from '../firebase.js'
 
 const pad2 = (n) => String(n).padStart(2, '0')
 
-export function monthIdFromTimestamp(ts) {
+// Each Firestore doc holds a single UTC day's worth of hourly readings.
+// Doc ID format: 'YYYY-MM-DD'. Hour keys inside the `hours` map: '00'..'23'.
+// This keeps every doc tiny (≤24 entries) so multi-year imports never hit
+// Firestore's 10 MiB transaction limit or the 1 MiB per-doc cap.
+const BATCH_DOC_LIMIT = 200
+
+export function dayIdFromTimestamp(ts) {
   const d = ts instanceof Date ? ts : new Date(ts)
-  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`
 }
 
 export function hourKeyFromTimestamp(ts) {
   const d = ts instanceof Date ? ts : new Date(ts)
-  return `${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}`
+  return pad2(d.getUTCHours())
 }
 
-export function monthIdToDate(monthId) {
-  const [y, m] = monthId.split('-').map(Number)
-  return new Date(Date.UTC(y, m - 1, 1))
+export function monthIdFromDayId(dayId) {
+  return dayId.slice(0, 7)
 }
 
-export function hourKeyToDate(monthId, hourKey) {
-  const [y, m] = monthId.split('-').map(Number)
-  const [dd, hh] = hourKey.split('T').map(Number)
-  return new Date(Date.UTC(y, m - 1, dd, hh))
+function monthRangeToDayRange(fromMonthId, toMonthId) {
+  return {
+    from: `${fromMonthId}-01`,
+    // '-32' sorts after any valid 'YYYY-MM-DD' for that month
+    to: `${toMonthId}-32`,
+  }
+}
+
+export function hourKeyToDate(dayId, hourKey) {
+  const [y, m, d] = dayId.split('-').map(Number)
+  const hh = parseInt(hourKey, 10)
+  return new Date(Date.UTC(y, m - 1, d, hh))
 }
 
 function energyCollection(uid) {
@@ -41,19 +54,19 @@ function energyCollection(uid) {
 }
 
 export async function saveEnergyData(uid, rows, source, onProgress) {
-  if (!rows.length) return { months: 0, hours: 0 }
+  if (!rows.length) return { days: 0, months: 0, hours: 0 }
 
-  // Group rows by monthId; collect hour entries per month
-  const byMonth = new Map()
+  // Group rows by dayId; collect hour entries per day
+  const byDay = new Map()
   for (const row of rows) {
     const ts = row.timestamp instanceof Date ? row.timestamp : new Date(row.timestamp)
     if (isNaN(ts.getTime())) continue
-    const monthId = monthIdFromTimestamp(ts)
+    const dayId = dayIdFromTimestamp(ts)
     const hourKey = hourKeyFromTimestamp(ts)
-    let entry = byMonth.get(monthId)
+    let entry = byDay.get(dayId)
     if (!entry) {
-      entry = { month: ts, hours: {} }
-      byMonth.set(monthId, entry)
+      entry = { day: ts, hours: {} }
+      byDay.set(dayId, entry)
     }
     const hourEntry = {
       solar: row.solar ?? 0,
@@ -70,35 +83,33 @@ export async function saveEnergyData(uid, rows, source, onProgress) {
     entry.hours[hourKey] = hourEntry
   }
 
-  const monthIds = [...byMonth.keys()].sort()
+  const dayIds = [...byDay.keys()].sort()
+  const months = new Set(dayIds.map(monthIdFromDayId))
   let done = 0
-  // Chunk months at 400 ops per batch (well under 500 limit)
-  for (let i = 0; i < monthIds.length; i += 400) {
-    const chunk = monthIds.slice(i, i + 400)
+  for (let i = 0; i < dayIds.length; i += BATCH_DOC_LIMIT) {
+    const chunk = dayIds.slice(i, i + BATCH_DOC_LIMIT)
     const batch = writeBatch(db)
-    for (const monthId of chunk) {
-      const { month, hours } = byMonth.get(monthId)
-      const ref = doc(energyCollection(uid), monthId)
-      // monthStart = first UTC instant of the month
-      const monthStart = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), 1))
+    for (const dayId of chunk) {
+      const { day, hours } = byDay.get(dayId)
+      const ref = doc(energyCollection(uid), dayId)
+      const dayStart = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()))
       batch.set(ref, {
-        month: Timestamp.fromDate(monthStart),
+        day: Timestamp.fromDate(dayStart),
         hours,
         importedAt: Timestamp.now(),
       }, { merge: true })
     }
     await batch.commit()
     done += chunk.length
-    onProgress?.(done, monthIds.length)
+    onProgress?.(done, dayIds.length)
   }
 
-  const totalHours = rows.length
-  return { months: monthIds.length, hours: totalHours }
+  return { days: dayIds.length, months: months.size, hours: rows.length }
 }
 
 async function deleteDocsInChunks(refs) {
-  for (let i = 0; i < refs.length; i += 400) {
-    const chunk = refs.slice(i, i + 400)
+  for (let i = 0; i < refs.length; i += BATCH_DOC_LIMIT) {
+    const chunk = refs.slice(i, i + BATCH_DOC_LIMIT)
     const batch = writeBatch(db)
     for (const ref of chunk) batch.delete(ref)
     await batch.commit()
@@ -106,17 +117,17 @@ async function deleteDocsInChunks(refs) {
 }
 
 export async function clearAllEnergyData(uid) {
-  // Months only — at most ~12/year. One getDocs is enough.
   const snap = await getDocs(energyCollection(uid))
   await deleteDocsInChunks(snap.docs.map(d => d.ref))
   return snap.size
 }
 
 export async function clearEnergyRange(uid, fromMonthId, toMonthId) {
+  const { from, to } = monthRangeToDayRange(fromMonthId, toMonthId)
   const q = query(
     energyCollection(uid),
-    where(documentId(), '>=', fromMonthId),
-    where(documentId(), '<=', toMonthId),
+    where(documentId(), '>=', from),
+    where(documentId(), '<=', to),
     orderBy(documentId()),
   )
   const snap = await getDocs(q)
@@ -125,21 +136,22 @@ export async function clearEnergyRange(uid, fromMonthId, toMonthId) {
 }
 
 export async function getEnergyRange(uid, fromMonthId, toMonthId) {
+  const { from, to } = monthRangeToDayRange(fromMonthId, toMonthId)
   const q = query(
     energyCollection(uid),
-    where(documentId(), '>=', fromMonthId),
-    where(documentId(), '<=', toMonthId),
+    where(documentId(), '>=', from),
+    where(documentId(), '<=', to),
     orderBy(documentId()),
   )
   const snap = await getDocs(q)
   const rows = []
   for (const docSnap of snap.docs) {
-    const monthId = docSnap.id
+    const dayId = docSnap.id
     const data = docSnap.data()
     const hours = data.hours || {}
     for (const [hourKey, h] of Object.entries(hours)) {
       rows.push({
-        timestamp: hourKeyToDate(monthId, hourKey),
+        timestamp: hourKeyToDate(dayId, hourKey),
         solar: h.solar ?? 0,
         gridImport: h.gridImport ?? 0,
         gridExport: h.gridExport ?? 0,
@@ -157,17 +169,20 @@ export async function getEnergyStats(uid) {
   const coll = energyCollection(uid)
   const firstSnap = await getDocs(query(coll, orderBy(documentId()), limit(1)))
   if (firstSnap.empty) {
-    return { months: 0, hours: 0, firstMonthId: null, lastMonthId: null, sources: {} }
+    return { months: 0, days: 0, hours: 0, firstMonthId: null, lastMonthId: null, sources: {} }
   }
-  // Pull all month docs (≤ ~12/yr typical, very cheap)
+  // Pull all day docs to derive month range, hour count and source breakdown.
+  // Even 5 years = ~1825 reads — fine for a manual page load.
   const allSnap = await getDocs(query(coll, orderBy(documentId())))
   let hours = 0
   const sources = {}
-  let firstMonthId = null
-  let lastMonthId = null
+  const monthSet = new Set()
+  let firstDayId = null
+  let lastDayId = null
   for (const docSnap of allSnap.docs) {
-    if (!firstMonthId) firstMonthId = docSnap.id
-    lastMonthId = docSnap.id
+    if (!firstDayId) firstDayId = docSnap.id
+    lastDayId = docSnap.id
+    monthSet.add(monthIdFromDayId(docSnap.id))
     const hoursMap = docSnap.data().hours || {}
     hours += Object.keys(hoursMap).length
     for (const h of Object.values(hoursMap)) {
@@ -175,10 +190,11 @@ export async function getEnergyStats(uid) {
     }
   }
   return {
-    months: allSnap.size,
+    months: monthSet.size,
+    days: allSnap.size,
     hours,
-    firstMonthId,
-    lastMonthId,
+    firstMonthId: firstDayId ? monthIdFromDayId(firstDayId) : null,
+    lastMonthId: lastDayId ? monthIdFromDayId(lastDayId) : null,
     sources,
   }
 }
@@ -191,5 +207,4 @@ export async function cleanupLegacySimulations(uid) {
   return snap.size
 }
 
-// Re-export for callers that need it
 export { deleteField }
