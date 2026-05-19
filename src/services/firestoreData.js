@@ -85,6 +85,8 @@ export async function saveEnergyData(uid, rows, source, onProgress) {
 
   const dayIds = [...byDay.keys()].sort()
   const months = new Set(dayIds.map(monthIdFromDayId))
+  // Emit total up-front so progress UI can render the bar at 0% immediately
+  onProgress?.(0, dayIds.length)
   let done = 0
   for (let i = 0; i < dayIds.length; i += BATCH_DOC_LIMIT) {
     const chunk = dayIds.slice(i, i + BATCH_DOC_LIMIT)

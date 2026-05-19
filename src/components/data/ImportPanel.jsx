@@ -64,15 +64,15 @@ export default function ImportPanel({ onImported }) {
         defaultSellPrice={defaults.sellPrice}
       />
 
-      {status === 'saving' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
-          {t('importingProgress')}
-          {progress.total > 0 && ` ${progress.done}/${progress.total}`}
-        </div>
-      )}
+      {status === 'saving' && <ProgressCard progress={progress} t={t} />}
+
       {status === 'done' && result && (
         <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800">
-          ✅ {result.hours} {t('importedHours')} ({result.months} {t('importedMonths')})
+          ✅ {result.hours.toLocaleString()} {t('importedHours')}
+          {' · '}
+          {result.days} {t('importedDays')}
+          {' · '}
+          {result.months} {t('importedMonths')}
         </div>
       )}
       {status === 'error' && (
@@ -80,6 +80,31 @@ export default function ImportPanel({ onImported }) {
           ⚠️ {error}
         </div>
       )}
+    </div>
+  )
+}
+
+function ProgressCard({ progress, t }) {
+  const total = progress.total || 0
+  const done = progress.done || 0
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 space-y-2">
+      <div className="flex items-center justify-between text-sm text-blue-800">
+        <span>
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse mr-2 align-middle" />
+          {t('importingProgress')}
+        </span>
+        <span className="font-mono text-xs">
+          {total > 0 ? `${done.toLocaleString()} / ${total.toLocaleString()} ${t('importedDays')} · ${pct}%` : '…'}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-blue-100 overflow-hidden">
+        <div
+          className="h-full bg-blue-500 transition-[width] duration-200"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   )
 }
