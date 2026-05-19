@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>AccuCalc</title>
+    <script>
+      // GitHub Pages SPA shim: redirect deep-link 404s back to the app
+      // so the BrowserRouter can pick up the requested path.
+      var basePath = '/CalcAccu/';
+      var location = window.location;
+      var path = location.pathname;
+      if (path.indexOf(basePath) === 0) {
+        var rest = path.substring(basePath.length);
+        location.replace(basePath + '?p=' + encodeURIComponent('/' + rest) + location.search.replace(/^\?/, '&') + location.hash);
+      }
+    </script>
+  </head>
+  <body></body>
+</html>
