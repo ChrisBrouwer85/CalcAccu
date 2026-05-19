@@ -94,6 +94,7 @@ export const translations = {
     // Strategy / Smart EMS
     strategyTitle: 'Smart EMS',
     emsSmartDesc: 'Uses day-ahead market prices to decide the best moment to sell stored energy.',
+    emsSell: 'sell',
     emsSellPct: 'Sell from battery at the best daily price',
     emsReservePct: 'reserved for home use through the night',
     emsGridCharge: 'Charge from grid at cheapest hours (arbitrage)',
@@ -308,6 +309,7 @@ export const translations = {
     // Strategy / Smart EMS
     strategyTitle: 'Slim EMS',
     emsSmartDesc: 'Gebruikt dag-van-tevoren marktprijzen om het beste moment te kiezen voor teruglevering.',
+    emsSell: 'verkoop',
     emsSellPct: 'Verkoop uit accu op het beste dagelijkse prijsmoment',
     emsReservePct: 'gereserveerd voor thuisgebruik gedurende de nacht',
     emsGridCharge: 'Laden vanuit net op goedkoopste uren (arbitrage)',

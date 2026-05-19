@@ -1,12 +1,15 @@
 // Dutch energiebelasting (electricity, residential, first bracket ≤ 2500 kWh/yr), excl. BTW.
 // From 2023 the ODE surcharge was merged into EB. Rates published by Belastingdienst annually.
+// Add new year's rate each January from https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/zakelijk/overige_belastingen/belastingen_op_milieugrondslag/tarieven_milieubelastingen
 const EB_RATE_EXCL_VAT = {
   2022: 0.11527,  // EB €0.09952 + ODE €0.01575
   2023: 0.12795,
   2024: 0.12599,
   2025: 0.10628,
+  // 2026 rate not yet in training data — update when Belastingplan 2026 is published
 }
 const VAT = 0.21
+// Fallback used for years not in the table; update when new rates become known
 const EB_FALLBACK_YEAR = 2025
 
 function energieBelastingInclVat(year) {

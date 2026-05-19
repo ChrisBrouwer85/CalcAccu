@@ -29,7 +29,7 @@ export default function SimulationControls({
   strategy,
   setStrategy,
 }) {
-  const { lang, t } = useLang()
+  const { t } = useLang()
   const { priceConfig } = usePriceConfig()
   const hasHourlyPrices = !!(priceConfig.hourlyPriceMap && priceConfig.hourlyPriceMap.size > 0)
 
@@ -68,7 +68,6 @@ export default function SimulationControls({
 
       <Section title={`🤖 ${t('configStrategy')}`}>
         <StrategyConfig
-          lang={lang}
           t={t}
           strategy={strategy}
           onChange={setStrategy}

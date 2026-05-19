@@ -1,4 +1,4 @@
-export default function StrategyConfig({ lang, t, strategy, onChange, hasHourlyPrices }) {
+export default function StrategyConfig({ t, strategy, onChange, hasHourlyPrices }) {
   const sellFraction = strategy.sellFraction ?? 0.5
   const allowGridCharge = strategy.allowGridCharge ?? false
 
@@ -22,8 +22,8 @@ export default function StrategyConfig({ lang, t, strategy, onChange, hasHourlyP
       {/* Sell fraction slider */}
       <div>
         <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>🏠 0% {lang === 'nl' ? 'verkoop' : 'sell'}</span>
-          <span>📈 100% {lang === 'nl' ? 'verkoop' : 'sell'}</span>
+          <span>🏠 0% {t('emsSell')}</span>
+          <span>📈 100% {t('emsSell')}</span>
         </div>
 
         {/* Visual bar */}

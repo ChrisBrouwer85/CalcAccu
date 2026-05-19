@@ -23,7 +23,9 @@ async function getCachedMonth(country, yearMonth) {
   try {
     const snap = await getDoc(doc(db, 'marketPrices', cacheKey(country, yearMonth)))
     if (!snap.exists()) return null
-    return snap.data().hours ?? null // [{h, buy}]
+    const hours = snap.data().hours
+    if (!Array.isArray(hours) || hours.length === 0 || !hours[0]?.h) return null
+    return hours
   } catch {
     // Firestore unavailable or permission denied → fall through to API fetch
     return null

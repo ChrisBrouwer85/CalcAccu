@@ -19,7 +19,7 @@ function buildDailyPriceStats(hourlyData, priceMap, fallback) {
   const stats = new Map()
   for (const [day, prices] of byDay) {
     const sorted = [...prices].sort((a, b) => a - b)
-    const allSame = sorted[0] === sorted[sorted.length - 1]
+    const allSame = sorted.length <= 1 || sorted[0] === sorted[sorted.length - 1]
     stats.set(day, {
       allSame,
       priceRank: (price) => {
@@ -43,8 +43,12 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
 
   const { sellFraction = 0.5, allowGridCharge = false } = strategy
 
-  const fallbackBuyPrice = 0.27
-  const dailyStats = buildDailyPriceStats(hourlyData, priceMap, fallbackBuyPrice)
+  // Fallback all-in price used when no price map is loaded (€/kWh, NL 2025 estimate)
+  const FALLBACK_PRICE = 0.27
+  // Minimum battery space (kWh) worth charging from grid — avoids tiny top-ups
+  const GRID_CHARGE_MIN_SPACE = 0.1
+
+  const dailyStats = buildDailyPriceStats(hourlyData, priceMap, FALLBACK_PRICE)
 
   let battery = 0
   const hourly = []
@@ -100,7 +104,7 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     let gridExport = 0
 
     const key = hourKey(timestamp)
-    const buyPrice = priceMap ? (priceMap.get(key) ?? fallbackBuyPrice) : fallbackBuyPrice
+    const buyPrice = priceMap ? (priceMap.get(key) ?? FALLBACK_PRICE) : FALLBACK_PRICE
 
     const day = key.slice(0, 10)
     const dayStats = dailyStats.get(day)
@@ -159,7 +163,7 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
       }
       // Top up battery from grid (arbitrage)
       const space = capacityKwh - battery
-      if (space > 0.01) {
+      if (space > GRID_CHARGE_MIN_SPACE) {
         const gridChargeKwh = Math.min(space / chargeEfficiency, maxChargeRateKw)
         battery = Math.min(capacityKwh, battery + gridChargeKwh * chargeEfficiency)
         batteryCharge += gridChargeKwh
@@ -189,7 +193,7 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
 
     // Dynamic: use the same hourly price for selling (saldering / spot contract).
     // Falls back to the fixed feed-in tariff only when no price map is loaded.
-    const hourSell = priceMap ? buyPrice : (sellPrice ?? 0.27)
+    const hourSell = priceMap ? buyPrice : (sellPrice ?? FALLBACK_PRICE)
 
     const hasSensorTariffs = sensorTariffs && Object.keys(sensorTariffs).length > 0
     const hasImportSensors = Object.keys(sensorImport).length > 0

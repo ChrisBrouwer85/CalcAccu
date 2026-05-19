@@ -75,7 +75,7 @@ export default function AccuConfig({ t, config, onChange }) {
             max="2000"
             step="50"
             value={config.costPerKwh}
-            onChange={e => updateField('costPerKwh', parseFloat(e.target.value))}
+            onChange={e => { const v = parseFloat(e.target.value); if (isFinite(v)) updateField('costPerKwh', v) }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-green-300"
           />
           <span className="text-gray-400 text-sm">/ kWh</span>
@@ -116,7 +116,7 @@ export default function AccuConfig({ t, config, onChange }) {
                 max="22"
                 step="0.1"
                 value={config.maxRateKw}
-                onChange={e => updateField('maxRateKw', parseFloat(e.target.value))}
+                onChange={e => { const v = parseFloat(e.target.value); if (isFinite(v)) updateField('maxRateKw', v) }}
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-green-300"
               />
             </div>
