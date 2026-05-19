@@ -11,11 +11,14 @@ export const DEFAULT_PREFERENCES = {
       maxRateKw: 5,
       costPerKwh: 500,
     },
-    homePriority: 0.8,
+    strategy: {
+      mode: 'fixed',
+      homePriority: 0.8,
+      sellFraction: 0.5,
+      allowGridCharge: false,
+    },
     priceConfig: {
-      source: 'static',
-      selectedYear: '2024',
-      buyPrice: 0.29,
+      country: 'NL',
       sellPrice: 0.10,
     },
   },
@@ -28,11 +31,18 @@ function preferencesRef(uid) {
 
 function mergeDefaults(stored) {
   if (!stored) return DEFAULT_PREFERENCES
+  const storedStrategy = stored.defaults?.strategy
+  const legacyHomePriority = stored.defaults?.homePriority
   return {
     lang: stored.lang ?? DEFAULT_PREFERENCES.lang,
     defaults: {
       accuConfig: { ...DEFAULT_PREFERENCES.defaults.accuConfig, ...(stored.defaults?.accuConfig ?? {}) },
-      homePriority: stored.defaults?.homePriority ?? DEFAULT_PREFERENCES.defaults.homePriority,
+      strategy: {
+        ...DEFAULT_PREFERENCES.defaults.strategy,
+        ...(storedStrategy ?? {}),
+        // Backward-compat: migrate old homePriority scalar into strategy
+        homePriority: storedStrategy?.homePriority ?? legacyHomePriority ?? DEFAULT_PREFERENCES.defaults.strategy.homePriority,
+      },
       priceConfig: { ...DEFAULT_PREFERENCES.defaults.priceConfig, ...(stored.defaults?.priceConfig ?? {}) },
     },
     sensorTariffs: stored.sensorTariffs ?? {},

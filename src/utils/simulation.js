@@ -6,6 +6,32 @@ function sensorCost(sensorMap, sensorTariffs, fallbackPrice) {
   }, 0)
 }
 
+// Returns Map<'YYYY-MM-DD', { priceRank(price)→0..1, allSame: bool }>
+function buildDailyPriceStats(hourlyData, priceMap, fallback) {
+  const byDay = new Map()
+  for (const row of hourlyData) {
+    const key = hourKey(row.timestamp)
+    const day = key.slice(0, 10)
+    const price = priceMap?.get(key) ?? fallback
+    if (!byDay.has(day)) byDay.set(day, [])
+    byDay.get(day).push(price)
+  }
+  const stats = new Map()
+  for (const [day, prices] of byDay) {
+    const sorted = [...prices].sort((a, b) => a - b)
+    const allSame = sorted[0] === sorted[sorted.length - 1]
+    stats.set(day, {
+      allSame,
+      priceRank: (price) => {
+        if (allSame) return 0
+        const below = sorted.filter(p => p < price).length
+        return below / (sorted.length - 1)
+      },
+    })
+  }
+  return stats
+}
+
 export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sellPrice, sensorTariffs = null) {
   const {
     capacityKwh,
@@ -15,7 +41,12 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     maxDischargeRateKw = 5,
   } = batteryConfig
 
-  const { homePriority = 0.8 } = strategy
+  const { mode = 'fixed', homePriority = 0.8, sellFraction = 0.5, allowGridCharge = false } = strategy
+
+  const fallbackBuyPrice = 0.27
+  const dailyStats = mode === 'smart'
+    ? buildDailyPriceStats(hourlyData, priceMap, fallbackBuyPrice)
+    : null
 
   let battery = 0
   const hourly = []
@@ -51,17 +82,14 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     } = row
     const monthIdx = new Date(timestamp).getMonth()
 
-    // Derive home consumption from energy balance
     const homeConsumption = Math.max(0, solar + rawGridImport - rawGridExport)
     totalHomeConsumption += homeConsumption
 
-    // Baseline (no battery)
     const baselineImport = rawGridImport
     const baselineExport = rawGridExport
     totalBaselineImport += baselineImport
     totalBaselineExport += baselineExport
 
-    // Net solar after home consumption
     const net = solar - homeConsumption
 
     let batteryCharge = 0
@@ -69,25 +97,104 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     let gridImport = 0
     let gridExport = 0
 
-    if (net >= 0) {
-      // Solar surplus — charge battery
-      const chargeable = Math.min(net * homePriority, maxChargeRateKw, capacityKwh - battery)
-      const actualCharge = Math.max(0, chargeable)
-      battery = Math.min(capacityKwh, battery + actualCharge * chargeEfficiency)
-      batteryCharge = actualCharge
+    const key = hourKey(timestamp)
+    const buyPrice = priceMap ? (priceMap.get(key) ?? fallbackBuyPrice) : fallbackBuyPrice
 
-      // Remaining surplus goes to grid
-      gridExport = net - actualCharge
+    if (mode === 'smart' && dailyStats) {
+      const day = key.slice(0, 10)
+      const dayStats = dailyStats.get(day)
+      const rank = dayStats ? dayStats.priceRank(buyPrice) : 0
+      const allSame = dayStats ? dayStats.allSame : true
+
+      // How much battery to keep in reserve for home use
+      const reserve = capacityKwh * (1 - sellFraction)
+
+      // Peak: top sellFraction of the day's prices → sell from battery
+      // Strict > so the cheapest hour is never treated as peak (handles sellFraction=1 edge case)
+      const isPeakHour = sellFraction > 0 && !allSame && rank > (1 - sellFraction)
+      // Cheap: bottom (sellFraction/2) → optionally charge from grid
+      const isCheapHour = allowGridCharge && !allSame && rank < sellFraction * 0.5
+
+      if (isPeakHour) {
+        if (net >= 0) {
+          // Export all solar surplus; don't charge battery
+          gridExport = net
+          // Sell battery above reserve
+          const sellable = Math.max(0, battery - reserve)
+          const sellKwh = Math.min(sellable, maxDischargeRateKw)
+          battery = Math.max(0, battery - sellKwh / dischargeEfficiency)
+          batteryDischarge = sellKwh
+          gridExport += sellKwh * dischargeEfficiency
+        } else {
+          // Cover home from battery first (home always wins)
+          const deficit = -net
+          const homeKwh = Math.min(battery, maxDischargeRateKw, deficit)
+          battery = Math.max(0, battery - homeKwh / dischargeEfficiency)
+          const covered = homeKwh * dischargeEfficiency
+          gridImport = Math.max(0, deficit - covered)
+          batteryDischarge = homeKwh
+          // Sell what remains above reserve, within rate cap
+          const rateLeft = maxDischargeRateKw - homeKwh
+          const sellable = Math.max(0, battery - reserve)
+          const sellKwh = Math.min(sellable, rateLeft)
+          battery = Math.max(0, battery - sellKwh / dischargeEfficiency)
+          batteryDischarge += sellKwh
+          gridExport = sellKwh * dischargeEfficiency
+        }
+      } else if (isCheapHour) {
+        // Normal solar/home balance with full self-consumption priority
+        if (net >= 0) {
+          const charge = Math.min(net, maxChargeRateKw, capacityKwh - battery)
+          battery = Math.min(capacityKwh, battery + charge * chargeEfficiency)
+          batteryCharge = charge
+          gridExport = net - charge
+        } else {
+          const deficit = -net
+          const dis = Math.min(battery, maxDischargeRateKw, deficit)
+          battery = Math.max(0, battery - dis / dischargeEfficiency)
+          batteryDischarge = dis
+          gridImport = Math.max(0, deficit - dis * dischargeEfficiency)
+        }
+        // Top up battery from grid (arbitrage)
+        const space = capacityKwh - battery
+        if (space > 0.01) {
+          const gridChargeKwh = Math.min(space / chargeEfficiency, maxChargeRateKw)
+          battery = Math.min(capacityKwh, battery + gridChargeKwh * chargeEfficiency)
+          batteryCharge += gridChargeKwh
+          gridImport += gridChargeKwh
+        }
+      } else {
+        // Normal smart hour: maximize self-consumption (full priority)
+        if (net >= 0) {
+          const charge = Math.min(net, maxChargeRateKw, capacityKwh - battery)
+          battery = Math.min(capacityKwh, battery + charge * chargeEfficiency)
+          batteryCharge = charge
+          gridExport = net - charge
+        } else {
+          const deficit = -net
+          const dis = Math.min(battery, maxDischargeRateKw, deficit)
+          battery = Math.max(0, battery - dis / dischargeEfficiency)
+          batteryDischarge = dis
+          gridImport = Math.max(0, deficit - dis * dischargeEfficiency)
+        }
+      }
     } else {
-      // Deficit — discharge battery
-      const deficit = Math.abs(net)
-      const dischargeable = Math.min(deficit * homePriority, maxDischargeRateKw, battery)
-      const actualDischarge = Math.max(0, dischargeable)
-      battery = Math.max(0, battery - actualDischarge / dischargeEfficiency)
-      const covered = actualDischarge * dischargeEfficiency
-      batteryDischarge = actualDischarge
-
-      gridImport = Math.max(0, deficit - covered)
+      // Fixed mode: original homePriority logic
+      if (net >= 0) {
+        const chargeable = Math.min(net * homePriority, maxChargeRateKw, capacityKwh - battery)
+        const actualCharge = Math.max(0, chargeable)
+        battery = Math.min(capacityKwh, battery + actualCharge * chargeEfficiency)
+        batteryCharge = actualCharge
+        gridExport = net - actualCharge
+      } else {
+        const deficit = Math.abs(net)
+        const dischargeable = Math.min(deficit * homePriority, maxDischargeRateKw, battery)
+        const actualDischarge = Math.max(0, dischargeable)
+        battery = Math.max(0, battery - actualDischarge / dischargeEfficiency)
+        const covered = actualDischarge * dischargeEfficiency
+        batteryDischarge = actualDischarge
+        gridImport = Math.max(0, deficit - covered)
+      }
     }
 
     totalGridImport += gridImport
@@ -96,10 +203,8 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     totalBatteryCharge += batteryCharge
     totalBatteryDischarge += batteryDischarge
 
-    const buyPrice = priceMap ? (priceMap.get(hourKey(timestamp)) ?? 0.27) : 0.27
     const hourSell = sellPrice ?? buyPrice * 0.3
 
-    // Financial calculation: use per-sensor tariffs when available
     const hasSensorTariffs = sensorTariffs && Object.keys(sensorTariffs).length > 0
     const hasImportSensors = Object.keys(sensorImport).length > 0
     const hasExportSensors = Object.keys(sensorExport).length > 0
@@ -108,7 +213,6 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
 
     if (hasSensorTariffs && hasImportSensors) {
       baselineCost = sensorCost(sensorImport, sensorTariffs, buyPrice)
-      // Scale simulated import proportionally across sensors
       const importScale = rawGridImport > 0 ? gridImport / rawGridImport : 0
       const scaledImport = Object.fromEntries(
         Object.entries(sensorImport).map(([id, kwh]) => [id, kwh * importScale])
@@ -121,7 +225,6 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
 
     if (hasSensorTariffs && hasExportSensors) {
       baselineRevenue = sensorCost(sensorExport, sensorTariffs, hourSell)
-      // Scale simulated export proportionally across sensors
       const exportScale = rawGridExport > 0 ? gridExport / rawGridExport : 0
       const scaledExport = Object.fromEntries(
         Object.entries(sensorExport).map(([id, kwh]) => [id, kwh * exportScale])

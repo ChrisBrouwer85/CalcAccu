@@ -4,19 +4,12 @@ import { useLang } from '../../context/LangContext.jsx'
 import { getPreferences, savePreferences, DEFAULT_PREFERENCES } from '../../services/preferences.js'
 import AccuConfig from '../AccuConfig.jsx'
 import StrategyConfig from '../StrategyConfig.jsx'
-import PriceConfig from '../PriceConfig.jsx'
 
 export default function DefaultsSection() {
   const { user } = useAuth()
   const { lang, t } = useLang()
   const [accuConfig, setAccuConfig] = useState(DEFAULT_PREFERENCES.defaults.accuConfig)
-  const [homePriority, setHomePriority] = useState(DEFAULT_PREFERENCES.defaults.homePriority)
-  const [priceConfig, setPriceConfig] = useState({
-    ...DEFAULT_PREFERENCES.defaults.priceConfig,
-    fromDate: '',
-    toDate: '',
-    hourlyPriceMap: null,
-  })
+  const [strategy, setStrategy] = useState(DEFAULT_PREFERENCES.defaults.strategy)
   const [status, setStatus] = useState('') // '' | 'saving' | 'saved' | 'error'
   const [loaded, setLoaded] = useState(false)
 
@@ -26,8 +19,7 @@ export default function DefaultsSection() {
     getPreferences(user.uid).then(prefs => {
       if (cancelled) return
       setAccuConfig(prefs.defaults.accuConfig)
-      setHomePriority(prefs.defaults.homePriority)
-      setPriceConfig(prev => ({ ...prev, ...prefs.defaults.priceConfig }))
+      setStrategy(prefs.defaults.strategy)
       setLoaded(true)
     }).catch(() => setLoaded(true))
     return () => { cancelled = true }
@@ -37,15 +29,8 @@ export default function DefaultsSection() {
     if (!user) return
     setStatus('saving')
     try {
-      // Strip transient fields not part of defaults
-      const priceDefaults = {
-        source: priceConfig.source,
-        selectedYear: priceConfig.selectedYear,
-        buyPrice: priceConfig.buyPrice,
-        sellPrice: priceConfig.sellPrice,
-      }
       await savePreferences(user.uid, {
-        defaults: { accuConfig, homePriority, priceConfig: priceDefaults },
+        defaults: { accuConfig, strategy },
       })
       setStatus('saved')
       setTimeout(() => setStatus(''), 2000)
@@ -67,12 +52,13 @@ export default function DefaultsSection() {
 
       <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
         <h4 className="font-semibold text-gray-800 mb-3">⚖️ {t('configStrategy')}</h4>
-        <StrategyConfig lang={lang} t={t} homePriority={homePriority} onChange={setHomePriority} />
-      </div>
-
-      <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-        <h4 className="font-semibold text-gray-800 mb-3">💶 {t('configPrices')}</h4>
-        <PriceConfig t={t} config={priceConfig} onChange={setPriceConfig} dataDateRange={null} />
+        <StrategyConfig
+          lang={lang}
+          t={t}
+          strategy={strategy}
+          onChange={setStrategy}
+          hasHourlyPrices={false}
+        />
       </div>
 
       <div className="flex items-center gap-3">

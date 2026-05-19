@@ -6,7 +6,6 @@ import { useEnergyStats } from '../hooks/useEnergyStats.js'
 import { useEnergyData } from '../hooks/useEnergyData.js'
 import { getPreferences } from '../services/preferences.js'
 import { runSimulation } from '../utils/simulation.js'
-import { getStaticPricesForYear, getStaticPriceMap } from '../utils/energyPrices.js'
 import SimulationControls from '../components/sim/SimulationControls.jsx'
 import SimulationResults from '../components/SimulationResults.jsx'
 
@@ -23,11 +22,14 @@ export default function SimulationPage() {
     maxRateKw: 5,
     costPerKwh: 500,
   })
-  const [homePriority, setHomePriority] = useState(0.8)
+  const [strategy, setStrategy] = useState({
+    mode: 'fixed',
+    homePriority: 0.8,
+    sellFraction: 0.5,
+    allowGridCharge: false,
+  })
   const [priceConfig, setPriceConfig] = useState({
-    source: 'static',
-    selectedYear: '2024',
-    buyPrice: 0.29,
+    country: 'NL',
     sellPrice: 0.10,
     fromDate: '',
     toDate: '',
@@ -44,7 +46,7 @@ export default function SimulationPage() {
     getPreferences(user.uid).then(prefs => {
       if (cancelled) return
       setAccuConfig(prev => ({ ...prev, ...prefs.defaults.accuConfig }))
-      setHomePriority(prefs.defaults.homePriority)
+      setStrategy(prev => ({ ...prev, ...prefs.defaults.strategy }))
       setPriceConfig(prev => ({ ...prev, ...prefs.defaults.priceConfig }))
       setSensorTariffs(prefs.sensorTariffs ?? {})
       setPrefsLoaded(true)
@@ -57,6 +59,20 @@ export default function SimulationPage() {
     if (stats?.firstMonthId && stats?.lastMonthId && !monthRange.fromMonth) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMonthRange({ fromMonth: stats.firstMonthId, toMonth: stats.lastMonthId })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stats?.firstMonthId, stats?.lastMonthId])
+
+  // Also auto-seed price date range from energy data range
+  useEffect(() => {
+    if (stats?.firstMonthId && stats?.lastMonthId && !priceConfig.fromDate) {
+      const from = stats.firstMonthId + '-01'
+      const lastMonth = stats.lastMonthId
+      const [y, m] = lastMonth.split('-').map(Number)
+      const lastDay = new Date(y, m, 0).getDate()
+      const to = `${lastMonth}-${String(lastDay).padStart(2, '0')}`
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPriceConfig(prev => ({ ...prev, fromDate: from, toDate: to }))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats?.firstMonthId, stats?.lastMonthId])
@@ -89,17 +105,8 @@ export default function SimulationPage() {
     ].filter(s => s && isFinite(s))
     if (allSizes.length === 0) return null
 
-    let priceMap = null
-    let sellPrice = priceConfig.sellPrice
-    if (priceConfig.source === 'api' && priceConfig.hourlyPriceMap) {
-      priceMap = priceConfig.hourlyPriceMap
-    } else {
-      const yr = parseInt(priceConfig.selectedYear) || 2024
-      const staticPrices = getStaticPricesForYear(yr)
-      const buyPrice = priceConfig.source === 'manual' ? priceConfig.buyPrice : staticPrices.buy
-      sellPrice = priceConfig.source === 'manual' ? priceConfig.sellPrice : staticPrices.sell
-      priceMap = getStaticPriceMap(energyData, buyPrice)
-    }
+    const priceMap = priceConfig.hourlyPriceMap ?? null
+    const sellPrice = priceConfig.sellPrice ?? 0.10
 
     return allSizes.map(size => ({
       sizeKwh: size,
@@ -112,13 +119,13 @@ export default function SimulationPage() {
           maxChargeRateKw: accuConfig.maxRateKw,
           maxDischargeRateKw: accuConfig.maxRateKw,
         },
-        { homePriority },
+        strategy,
         priceMap,
         sellPrice,
         sensorTariffs,
       ),
     }))
-  }, [energyData, accuConfig, homePriority, priceConfig, sensorTariffs])
+  }, [energyData, accuConfig, strategy, priceConfig, sensorTariffs])
 
   if (statsLoading || !prefsLoaded) {
     return <div className="text-sm text-gray-400">{t('loading')}</div>
@@ -148,8 +155,8 @@ export default function SimulationPage() {
           availableRange={stats}
           accuConfig={accuConfig}
           setAccuConfig={setAccuConfig}
-          homePriority={homePriority}
-          setHomePriority={setHomePriority}
+          strategy={strategy}
+          setStrategy={setStrategy}
           priceConfig={priceConfig}
           setPriceConfig={setPriceConfig}
           dataDateRange={dataDateRange}

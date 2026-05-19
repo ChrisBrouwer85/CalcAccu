@@ -26,13 +26,14 @@ export default function SimulationControls({
   availableRange,
   accuConfig,
   setAccuConfig,
-  homePriority,
-  setHomePriority,
+  strategy,
+  setStrategy,
   priceConfig,
   setPriceConfig,
   dataDateRange,
 }) {
   const { lang, t } = useLang()
+  const hasHourlyPrices = !!(priceConfig.hourlyPriceMap && priceConfig.hourlyPriceMap.size > 0)
 
   return (
     <div className="space-y-4">
@@ -68,7 +69,13 @@ export default function SimulationControls({
       </Section>
 
       <Section title={`⚖️ ${t('configStrategy')}`}>
-        <StrategyConfig lang={lang} t={t} homePriority={homePriority} onChange={setHomePriority} />
+        <StrategyConfig
+          lang={lang}
+          t={t}
+          strategy={strategy}
+          onChange={setStrategy}
+          hasHourlyPrices={hasHourlyPrices}
+        />
       </Section>
 
       <Section title={`💶 ${t('configPrices')}`} defaultOpen={false}>
