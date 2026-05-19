@@ -247,7 +247,16 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     ? Math.max(0, (1 - totalBaselineImport / totalHomeConsumption) * 100)
     : 0
 
-  const annualSavings = monthly.reduce((s, m) => s + m.savings, 0)
+  const periodSavings = monthly.reduce((s, m) => s + m.savings, 0)
+
+  // Annualize: scale the period total to a 365-day year so payback is correct
+  // regardless of how many months the user selected.
+  const firstTs = hourlyData.length > 0 ? new Date(hourlyData[0].timestamp) : null
+  const lastTs  = hourlyData.length > 0 ? new Date(hourlyData[hourlyData.length - 1].timestamp) : null
+  const periodDays = (firstTs && lastTs && lastTs > firstTs)
+    ? (lastTs - firstTs) / 86400000 + 1
+    : Math.max(1, hourlyData.length / 24)
+  const annualSavings = periodSavings * (365 / periodDays)
 
   return {
     hourly,
@@ -265,6 +274,8 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
       baselineSelfSufficiency,
     },
     financial: {
+      periodSavings,
+      periodDays: Math.round(periodDays),
       annualSavings,
     },
   }

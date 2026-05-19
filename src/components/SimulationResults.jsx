@@ -17,6 +17,7 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
   const payback = savings > 0 ? totalCost / savings : Infinity
   const selfSuffImprovement = totals.selfSufficiency - totals.baselineSelfSufficiency
   const importReduction = totals.baselineGridImport - totals.gridImport
+  const periodMonths = financial.periodDays ? Math.round(financial.periodDays / 30.4) : null
 
   return (
     <div className={`relative bg-white rounded-2xl border-2 p-4 sm:p-5 ${isBest ? 'border-green-400 shadow-lg' : 'border-gray-200'}`}>
@@ -30,7 +31,14 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
       </div>
       <div className="space-y-3">
         <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
-          <span className="text-sm text-gray-500">{t('annualSavings')}</span>
+          <span className="text-sm text-gray-500">
+            {t('annualSavings')}
+            {periodMonths && periodMonths < 11 && (
+              <span className="block text-xs text-gray-400">
+                ({fmtEur(financial.periodSavings)} over {periodMonths} {t('months') ?? 'mo'}, extrapolated)
+              </span>
+            )}
+          </span>
           <span className={`font-bold text-lg ${savings > 0 ? 'text-green-600' : 'text-red-500'}`}>
             {fmtEur(savings)} / {t('years').replace('jaar','').replace('years','').trim() || 'yr'}
           </span>
