@@ -1,35 +1,50 @@
-import { useState } from 'react'
-import CSVImport from '../CSVImport.jsx'
-import HAImport from '../HAImport.jsx'
+import { useEffect, useState } from 'react'
+import ImportData from '../ImportData.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useLang } from '../../context/LangContext.jsx'
 import { saveEnergyData } from '../../services/firestoreData.js'
+import { getPreferences, savePreferences } from '../../services/preferences.js'
 import { invalidateEnergyCache } from '../../hooks/useEnergyData.js'
 
 export default function ImportPanel({ onImported }) {
   const { user } = useAuth()
   const { t } = useLang()
-  const [activeTab, setActiveTab] = useState('csv')
   const [status, setStatus] = useState(null) // null | 'saving' | 'done' | 'error'
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const [defaults, setDefaults] = useState({ buyPrice: 0.29, sellPrice: 0.10 })
 
-  const tabs = [
-    { key: 'csv', label: t('csvTab'), icon: '📄' },
-    { key: 'ha', label: t('haTab'), icon: '🏠' },
-  ]
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    getPreferences(user.uid).then(prefs => {
+      if (cancelled) return
+      setDefaults({
+        buyPrice: prefs.defaults.priceConfig.buyPrice,
+        sellPrice: prefs.defaults.priceConfig.sellPrice,
+      })
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [user])
 
-  async function handleData(rows) {
+  async function handleData(rows, sensorTariffs) {
     if (!user) return
     setStatus('saving')
     setProgress({ done: 0, total: 0 })
     setResult(null)
     setError('')
     try {
-      const summary = await saveEnergyData(user.uid, rows, activeTab, (done, total) => {
+      const summary = await saveEnergyData(user.uid, rows, 'import', (done, total) => {
         setProgress({ done, total })
       })
+      // Merge sensor tariffs into the user's settings doc
+      if (sensorTariffs && Object.keys(sensorTariffs).length > 0) {
+        const prefs = await getPreferences(user.uid)
+        await savePreferences(user.uid, {
+          sensorTariffs: { ...prefs.sensorTariffs, ...sensorTariffs },
+        })
+      }
       invalidateEnergyCache(user.uid)
       setResult({ ...summary, rows: rows.length })
       setStatus('done')
@@ -42,24 +57,12 @@ export default function ImportPanel({ onImported }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.key
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <span>{tab.icon}</span> {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'csv' && <CSVImport t={t} onDataReady={handleData} disabled={status === 'saving'} />}
-      {activeTab === 'ha' && <HAImport t={t} onDataReady={handleData} />}
+      <ImportData
+        t={t}
+        onDataReady={handleData}
+        defaultBuyPrice={defaults.buyPrice}
+        defaultSellPrice={defaults.sellPrice}
+      />
 
       {status === 'saving' && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">

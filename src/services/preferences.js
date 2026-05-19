@@ -19,6 +19,7 @@ export const DEFAULT_PREFERENCES = {
       sellPrice: 0.10,
     },
   },
+  sensorTariffs: {},
 }
 
 function preferencesRef(uid) {
@@ -34,6 +35,7 @@ function mergeDefaults(stored) {
       homePriority: stored.defaults?.homePriority ?? DEFAULT_PREFERENCES.defaults.homePriority,
       priceConfig: { ...DEFAULT_PREFERENCES.defaults.priceConfig, ...(stored.defaults?.priceConfig ?? {}) },
     },
+    sensorTariffs: stored.sensorTariffs ?? {},
     legacyCleanedAt: stored.legacyCleanedAt ?? null,
   }
 }

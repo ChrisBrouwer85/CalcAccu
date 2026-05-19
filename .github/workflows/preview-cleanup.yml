@@ -1,0 +1,45 @@
+name: PR Preview Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+      - name: Remove preview folder
+        run: |
+          if [ -d "pr-${{ github.event.pull_request.number }}" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git rm -rf "pr-${{ github.event.pull_request.number }}"
+            git commit -m "chore: remove preview for PR #${{ github.event.pull_request.number }}"
+            git push
+          else
+            echo "No preview folder found, nothing to clean up."
+          fi
+      - uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: github-actions[bot]
+          body-includes: "<!-- pr-preview-comment -->"
+      - uses: peter-evans/create-or-update-comment@v4
+        if: steps.find-comment.outputs.comment-id != ''
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          edit-mode: replace
+          body: |
+            <!-- pr-preview-comment -->
+            ### Preview deployment
+
+            Preview removed — this PR has been closed.

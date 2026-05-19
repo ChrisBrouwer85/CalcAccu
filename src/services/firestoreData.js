@@ -55,12 +55,19 @@ export async function saveEnergyData(uid, rows, source, onProgress) {
       entry = { month: ts, hours: {} }
       byMonth.set(monthId, entry)
     }
-    entry.hours[hourKey] = {
+    const hourEntry = {
       solar: row.solar ?? 0,
       gridImport: row.gridImport ?? 0,
       gridExport: row.gridExport ?? 0,
       source,
     }
+    if (row.sensorImport && Object.keys(row.sensorImport).length > 0) {
+      hourEntry.sensorImport = row.sensorImport
+    }
+    if (row.sensorExport && Object.keys(row.sensorExport).length > 0) {
+      hourEntry.sensorExport = row.sensorExport
+    }
+    entry.hours[hourKey] = hourEntry
   }
 
   const monthIds = [...byMonth.keys()].sort()
@@ -136,6 +143,8 @@ export async function getEnergyRange(uid, fromMonthId, toMonthId) {
         solar: h.solar ?? 0,
         gridImport: h.gridImport ?? 0,
         gridExport: h.gridExport ?? 0,
+        sensorImport: h.sensorImport ?? {},
+        sensorExport: h.sensorExport ?? {},
         source: h.source,
       })
     }

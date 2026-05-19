@@ -22,7 +22,7 @@ export default function PriceConfig({ t, config, onChange, dataDateRange }) {
       const map = buildHourlyPriceMap(prices)
       onChange({ ...config, hourlyPriceMap: map })
       setFetchStatus(`✅ ${prices.length} ${t('fetchSuccess')}`)
-    } catch (e) {
+    } catch {
       setFetchStatus(`⚠️ ${t('fetchFailed')}`)
     } finally {
       setLoading(false)

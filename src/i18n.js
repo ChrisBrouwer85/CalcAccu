@@ -3,20 +3,29 @@ export const translations = {
     appTitle: 'AccuCalc',
     appSubtitle: 'Battery Savings Calculator',
 
-    // Navigation
+    // Navigation (refactor)
     navData: 'Data',
     navSimulation: 'Simulation',
     navSettings: 'Settings',
 
-    // Common
+    // Common (refactor)
     loading: 'Loading…',
-    saving: 'Saving…',
     cancel: 'Cancel',
     confirmDelete: 'Yes, delete',
     fromMonth: 'From month',
     toMonth: 'To month',
 
-    // Data page
+    // Legacy wizard labels (kept for reused components: ImportData, AccuConfig, etc.)
+    step1: 'Import Data',
+    step2: 'Configure Accu',
+    step3: 'Strategy',
+    step4: 'Energy Prices',
+    next: 'Next',
+    back: 'Back',
+    calculate: 'Calculate Savings',
+    uploadAnother: 'New import',
+
+    // Data page (refactor)
     dataOverview: 'Stored data',
     importData: 'Import data',
     manageData: 'Manage data',
@@ -33,7 +42,7 @@ export const translations = {
     clearRange: 'Clear month range',
     clearConfirm: 'Delete data in the selected month range?',
 
-    // CSV import
+    // Import (CSV + HA shared)
     csvTab: 'CSV File',
     haTab: 'Home Assistant',
     dropCSV: 'Drop your Home Assistant energy CSV here',
@@ -41,9 +50,11 @@ export const translations = {
     csvPreview: 'CSV Preview',
     columnMapping: 'Column Mapping',
     mapSolar: 'Solar Production sensor',
-    mapGridImport: 'Grid Import sensor',
-    mapGridExport: 'Grid Export sensor',
+    mapGridImport: 'Grid Import sensors',
+    mapGridExport: 'Grid Export sensors',
     noSensor: '— None / not available —',
+    addSensor: 'Add sensor',
+    sensorTariff: 'Tariff (€/kWh)',
     confirmMapping: 'Confirm & Import',
     mappingError: 'Please map at least Grid Import to continue.',
     dataLoaded: 'rows of hourly data loaded',
@@ -102,7 +113,7 @@ export const translations = {
     toDate: 'To date',
     historicalRef: 'Reference prices (Netherlands):',
 
-    // Simulation
+    // Simulation page
     simRange: 'Date range',
     simNoData: 'No data imported yet. Import data first to run a simulation.',
     goToData: 'Go to data page',
@@ -145,7 +156,7 @@ export const translations = {
     jan: 'Jan', feb: 'Feb', mar: 'Mar', apr: 'Apr', may: 'May', jun: 'Jun',
     jul: 'Jul', aug: 'Aug', sep: 'Sep', oct: 'Oct', nov: 'Nov', dec: 'Dec',
 
-    // Auth
+    // Auth (refactor + main login keys retained for reused login-style screens)
     signIn: 'Sign In',
     signUp: 'Create Account',
     signOut: 'Sign Out',
@@ -155,8 +166,25 @@ export const translations = {
     authError: 'Authentication failed',
     switchToSignUp: "Don't have an account? Sign up",
     switchToSignIn: 'Already have an account? Sign in',
+    loginSubtitle: 'Sign in to get started',
+    loginWithGoogle: 'Continue with Google',
+    loginOr: 'or',
+    loginEmail: 'Email address',
+    loginEmailPlaceholder: 'you@example.com',
+    loginPassword: 'Password',
+    loginPasswordPlaceholder: 'Enter your password',
+    loginSignIn: 'Sign in',
+    loginRegister: 'Create account',
+    loginNoAccount: 'No account yet?',
+    loginHaveAccount: 'Already have an account?',
+    loginLoading: 'Signing in…',
+    loginErrorGeneric: 'Sign-in failed. Please try again.',
+    loginErrorEmail: 'No account found with this email.',
+    loginErrorPassword: 'Incorrect password.',
+    loginErrorEmailTaken: 'This email is already registered.',
+    loginErrorWeakPassword: 'Password must be at least 6 characters.',
 
-    // Settings
+    // Settings page
     settingsAccount: 'Account',
     settingsDefaults: 'Default values',
     settingsDanger: 'Danger zone',
@@ -164,6 +192,8 @@ export const translations = {
     defaultsHint: 'These values seed the simulation page each time it loads.',
     saveDefaults: 'Save defaults',
     defaultsSaved: 'Saved',
+    saving: 'Saving…',
+    saved: 'Saved!',
     deleteAllData: 'Delete all data',
     deleteAccount: 'Delete account',
     deleteAccountConfirm: 'This will permanently delete your account and all associated data. This cannot be undone.',
@@ -181,11 +211,19 @@ export const translations = {
     navSettings: 'Instellingen',
 
     loading: 'Laden…',
-    saving: 'Opslaan…',
     cancel: 'Annuleren',
     confirmDelete: 'Ja, verwijderen',
     fromMonth: 'Vanaf maand',
     toMonth: 'Tot en met maand',
+
+    step1: 'Data importeren',
+    step2: 'Accu instellen',
+    step3: 'Strategie',
+    step4: 'Energieprijzen',
+    next: 'Volgende',
+    back: 'Terug',
+    calculate: 'Besparing berekenen',
+    uploadAnother: 'Nieuw import',
 
     dataOverview: 'Opgeslagen data',
     importData: 'Data importeren',
@@ -210,9 +248,11 @@ export const translations = {
     csvPreview: 'CSV-voorbeeld',
     columnMapping: 'Kolomkoppeling',
     mapSolar: 'Zonneproductie sensor',
-    mapGridImport: 'Netafname sensor',
-    mapGridExport: 'Teruglevering sensor',
+    mapGridImport: 'Netafname sensoren',
+    mapGridExport: 'Teruglevering sensoren',
     noSensor: '— Geen / niet beschikbaar —',
+    addSensor: 'Sensor toevoegen',
+    sensorTariff: 'Tarief (€/kWh)',
     confirmMapping: 'Bevestig & importeer',
     mappingError: 'Koppel minimaal de netafname om door te gaan.',
     dataLoaded: 'uren aan data geladen',
@@ -317,6 +357,23 @@ export const translations = {
     authError: 'Inloggen mislukt',
     switchToSignUp: 'Nog geen account? Registreer',
     switchToSignIn: 'Al een account? Inloggen',
+    loginSubtitle: 'Log in om te beginnen',
+    loginWithGoogle: 'Doorgaan met Google',
+    loginOr: 'of',
+    loginEmail: 'E-mailadres',
+    loginEmailPlaceholder: 'jij@voorbeeld.nl',
+    loginPassword: 'Wachtwoord',
+    loginPasswordPlaceholder: 'Voer je wachtwoord in',
+    loginSignIn: 'Inloggen',
+    loginRegister: 'Account aanmaken',
+    loginNoAccount: 'Nog geen account?',
+    loginHaveAccount: 'Al een account?',
+    loginLoading: 'Bezig met inloggen…',
+    loginErrorGeneric: 'Inloggen mislukt. Probeer opnieuw.',
+    loginErrorEmail: 'Geen account gevonden met dit e-mailadres.',
+    loginErrorPassword: 'Onjuist wachtwoord.',
+    loginErrorEmailTaken: 'Dit e-mailadres is al geregistreerd.',
+    loginErrorWeakPassword: 'Wachtwoord moet minimaal 6 tekens bevatten.',
 
     settingsAccount: 'Account',
     settingsDefaults: 'Standaardwaarden',
@@ -325,6 +382,8 @@ export const translations = {
     defaultsHint: 'Deze waarden vullen de simulatiepagina bij elke laadbeurt voor.',
     saveDefaults: 'Standaardwaarden opslaan',
     defaultsSaved: 'Opgeslagen',
+    saving: 'Opslaan…',
+    saved: 'Opgeslagen!',
     deleteAllData: 'Alle data verwijderen',
     deleteAccount: 'Account verwijderen',
     deleteAccountConfirm: 'Hiermee verwijder je je account en alle bijbehorende data definitief. Dit kan niet ongedaan worden gemaakt.',

@@ -33,6 +33,7 @@ export default function SimulationPage() {
     toDate: '',
     hourlyPriceMap: null,
   })
+  const [sensorTariffs, setSensorTariffs] = useState({})
 
   const [monthRange, setMonthRange] = useState({ fromMonth: '', toMonth: '' })
 
@@ -45,6 +46,7 @@ export default function SimulationPage() {
       setAccuConfig(prev => ({ ...prev, ...prefs.defaults.accuConfig }))
       setHomePriority(prefs.defaults.homePriority)
       setPriceConfig(prev => ({ ...prev, ...prefs.defaults.priceConfig }))
+      setSensorTariffs(prefs.sensorTariffs ?? {})
       setPrefsLoaded(true)
     }).catch(() => setPrefsLoaded(true))
     return () => { cancelled = true }
@@ -113,9 +115,10 @@ export default function SimulationPage() {
         { homePriority },
         priceMap,
         sellPrice,
+        sensorTariffs,
       ),
     }))
-  }, [energyData, accuConfig, homePriority, priceConfig])
+  }, [energyData, accuConfig, homePriority, priceConfig, sensorTariffs])
 
   if (statsLoading || !prefsLoaded) {
     return <div className="text-sm text-gray-400">{t('loading')}</div>
