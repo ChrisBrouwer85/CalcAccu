@@ -77,6 +77,7 @@ export default function AppShell() {
           {/* Nav: full-width row on mobile, inline on sm+ */}
           <nav className="flex items-center gap-1 sm:gap-1 w-full sm:w-auto overflow-x-auto">
             <NavLink to="/data" className={navLinkClass}>{t('navData')}</NavLink>
+            <NavLink to="/prices" className={navLinkClass}>{t('navPrices')}</NavLink>
             <NavLink to="/simulation" className={navLinkClass}>{t('navSimulation')}</NavLink>
             <NavLink to="/settings" className={navLinkClass}>{t('navSettings')}</NavLink>
           </nav>

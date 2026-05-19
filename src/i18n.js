@@ -5,6 +5,7 @@ export const translations = {
 
     // Navigation (refactor)
     navData: 'Data',
+    navPrices: 'Prices',
     navSimulation: 'Simulation',
     navSettings: 'Settings',
 
@@ -98,7 +99,22 @@ export const translations = {
     emsGridCharge: 'Charge from grid at cheapest hours (arbitrage)',
     emsNeedsPrices: 'Smart EMS requires hourly prices — load them in the Prices panel.',
 
-    // Prices
+    // Prices page
+    pricesTitle: 'Market Prices',
+    pricesNoData: 'Import energy data first to determine the date range.',
+    priceMin: 'Minimum',
+    priceMax: 'Maximum',
+    priceAvg: 'Average',
+    priceMedian: 'Median',
+    priceP10: 'Cheapest 10%',
+    priceP90: 'Most expensive 10%',
+    priceByMonth: 'Monthly average (€/kWh)',
+    priceByHour: 'Average by hour of day (€/kWh)',
+    priceDistribution: 'Price distribution',
+    priceHours: 'hours',
+    priceRetry: 'Retry',
+
+    // Prices (legacy keys kept)
     priceTitle: 'Energy Prices',
     priceCountry: 'Country',
     priceNL: 'Netherlands (EnergyZero)',
@@ -205,6 +221,7 @@ export const translations = {
     appSubtitle: 'Accu Besparingscalculator',
 
     navData: 'Data',
+    navPrices: 'Prijzen',
     navSimulation: 'Simulatie',
     navSettings: 'Instellingen',
 
@@ -291,6 +308,21 @@ export const translations = {
     emsReservePct: 'gereserveerd voor thuisgebruik gedurende de nacht',
     emsGridCharge: 'Laden vanuit net op goedkoopste uren (arbitrage)',
     emsNeedsPrices: 'Slim EMS vereist uurprijzen — laad ze in het Prijzen-paneel.',
+
+    // Prices page
+    pricesTitle: 'Marktprijzen',
+    pricesNoData: 'Importeer eerst energiedata om het datumbereik te bepalen.',
+    priceMin: 'Minimum',
+    priceMax: 'Maximum',
+    priceAvg: 'Gemiddeld',
+    priceMedian: 'Mediaan',
+    priceP10: 'Goedkoopste 10%',
+    priceP90: 'Duurste 10%',
+    priceByMonth: 'Maandgemiddelde (€/kWh)',
+    priceByHour: 'Gemiddelde per uur van de dag (€/kWh)',
+    priceDistribution: 'Prijsverdeling',
+    priceHours: 'uur',
+    priceRetry: 'Opnieuw proberen',
 
     priceTitle: 'Energieprijzen',
     priceCountry: 'Land',

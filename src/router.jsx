@@ -3,8 +3,10 @@ import { useAuth } from './context/AuthContext.jsx'
 import AppShell from './AppShell.jsx'
 import AuthPage from './components/AuthPage.jsx'
 import DataPage from './pages/DataPage.jsx'
+import PricesPage from './pages/PricesPage.jsx'
 import SimulationPage from './pages/SimulationPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
+import { PriceProvider } from './context/PriceContext.jsx'
 
 // eslint-disable-next-line react-refresh/only-export-components
 function RequireAuth() {
@@ -49,10 +51,11 @@ export const router = createHashRouter([
     element: <RequireAuth />,
     children: [
       {
-        element: <AppShell />,
+        element: <PriceProvider><AppShell /></PriceProvider>,
         children: [
           { index: true, element: <Navigate to="/data" replace /> },
           { path: '/data', element: <DataPage /> },
+          { path: '/prices', element: <PricesPage /> },
           { path: '/simulation', element: <SimulationPage /> },
           { path: '/settings', element: <SettingsPage /> },
           { path: '*', element: <Navigate to="/data" replace /> },
