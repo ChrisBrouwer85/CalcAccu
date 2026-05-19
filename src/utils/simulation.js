@@ -115,9 +115,10 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     // Using battery (not capacityKwh) so a large undercharged battery still sells.
     const reserve = battery * (1 - sellFraction)
 
-    // Peak: top sellFraction of the day's prices → sell from battery
-    // Strict > so the cheapest hour is never treated as peak (handles sellFraction=1 edge case)
-    const isPeakHour = sellFraction > 0 && !allSame && rank > (1 - sellFraction)
+    // Peak: top sellFraction of the day's prices → sell from battery.
+    // Strict > so the cheapest hour is never treated as peak (handles sellFraction=1 edge case).
+    // buyPrice > 0 guard: never sell at negative prices — it would cost money instead of earning it.
+    const isPeakHour = sellFraction > 0 && !allSame && rank > (1 - sellFraction) && buyPrice > 0
     // Cheap-charge: negative price (always worthwhile) or bottom sellFraction/2 of the day
     const isCheapHour = (allowGridChargeNegative && buyPrice < 0) ||
       (allowGridChargeCheap && !allSame && rank < sellFraction * 0.5)
@@ -149,7 +150,9 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
         gridExport = sellKwh * dischargeEfficiency
       }
     } else if (isCheapHour) {
-      // Normal solar/home balance with full self-consumption priority
+      // Solar/home balance. For net >= 0: absorb solar, export surplus (possibly at negative cost).
+      // For net < 0: at negative prices do NOT discharge battery — importing is profitable, so cover
+      // home entirely from grid and preserve stored energy for peak hours.
       if (net >= 0) {
         const charge = Math.min(net, maxChargeRateKw, capacityKwh - battery)
         battery = Math.min(capacityKwh, battery + charge * chargeEfficiency)
@@ -157,10 +160,15 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
         gridExport = net - charge
       } else {
         const deficit = -net
-        const dis = Math.min(battery, maxDischargeRateKw, deficit)
-        battery = Math.max(0, battery - dis / dischargeEfficiency)
-        batteryDischarge = dis
-        gridImport = Math.max(0, deficit - dis * dischargeEfficiency)
+        if (buyPrice < 0) {
+          // Negative price: importing earns money — don't deplete battery, import all home demand
+          gridImport = deficit
+        } else {
+          const dis = Math.min(battery, maxDischargeRateKw, deficit)
+          battery = Math.max(0, battery - dis / dischargeEfficiency)
+          batteryDischarge = dis
+          gridImport = Math.max(0, deficit - dis * dischargeEfficiency)
+        }
       }
       // Top up battery from grid (arbitrage)
       const space = capacityKwh - battery

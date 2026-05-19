@@ -307,6 +307,70 @@ describe('runSimulation – smart EMS', () => {
     expect(cheapResult.hourly[0].batteryCharge).toBe(0)
   })
 
+  it('allowGridChargeNegative: does not discharge battery when covering deficit at negative price', () => {
+    // Day 1 (single hour, allSame): solar charges battery to 5 kWh
+    // Day 2: negative price at night + peak at noon — battery should NOT deplete at negative hour
+    const tsSolar = '2024-05-31T12:00:00Z'
+    const tsNeg   = '2024-06-01T02:00:00Z'
+    const tsPeak  = '2024-06-01T18:00:00Z'
+    const data = [
+      surplus(tsSolar, 5),
+      makeHour(tsNeg, 0, 1, 0),  // 1 kWh home deficit at negative price
+      empty(tsPeak),
+    ]
+    const map = buildMap([
+      { timestamp: tsSolar, price: 0.20 },
+      { timestamp: tsNeg,   price: -0.05 },
+      { timestamp: tsPeak,  price:  0.40 },
+    ])
+    const strategy = { sellFraction: 0.5, allowGridChargeNegative: true, allowGridChargeCheap: false }
+    const result = runSimulation(data, BATTERY_10KWH, strategy, map, null)
+    // Battery must NOT discharge — importing is profitable at negative price
+    expect(result.hourly[1].batteryDischarge).toBe(0)
+    // Home covered from grid (+ battery top-up from grid)
+    expect(result.hourly[1].gridImport).toBeGreaterThanOrEqual(1)
+  })
+
+  it('isPeakHour does not trigger when all daily prices are negative', () => {
+    // Day 1: charges battery via solar; Day 2: both prices negative but different
+    // Without the buyPrice>0 guard the "least negative" hour would be treated as peak and sell at
+    // negative price (costing money). With the guard it should use isCheapHour instead.
+    const tsSolar = '2024-05-31T12:00:00Z'
+    const tsLow   = '2024-06-01T02:00:00Z'  // -0.10 (cheapest)
+    const tsHigh  = '2024-06-01T14:00:00Z'  // -0.02 (least negative, would be "peak" rank=1)
+    const data = [
+      surplus(tsSolar, 5),
+      empty(tsLow),
+      empty(tsHigh),
+    ]
+    const map = buildMap([
+      { timestamp: tsSolar, price:  0.20 },
+      { timestamp: tsLow,   price: -0.10 },
+      { timestamp: tsHigh,  price: -0.02 },
+    ])
+    const strategy = { sellFraction: 0.5, allowGridChargeNegative: true, allowGridChargeCheap: false }
+    const result = runSimulation(data, BATTERY_10KWH, strategy, map, null)
+    // tsHigh would be "peak" by rank but price < 0 → isPeakHour must be false → no selling
+    expect(result.hourly[2].batteryDischarge).toBe(0)
+    expect(result.hourly[2].gridExport).toBe(0)
+  })
+
+  it('allowGridChargeNegative: produces positive savings (earns on import, sells at later peak)', () => {
+    const tsNeg  = '2024-06-01T02:00:00Z'
+    const tsPeak = '2024-06-01T18:00:00Z'
+    const data = [
+      makeHour(tsNeg, 0, 1, 0),  // 1 kWh deficit, negative price
+      empty(tsPeak),
+    ]
+    const map = buildMap([
+      { timestamp: tsNeg,  price: -0.05 },
+      { timestamp: tsPeak, price:  0.40 },
+    ])
+    const strategy = { sellFraction: 0.5, allowGridChargeNegative: true, allowGridChargeCheap: false }
+    const result = runSimulation(data, BATTERY_10KWH, strategy, map, null)
+    expect(result.financial.annualSavings).toBeGreaterThan(0)
+  })
+
   it('allowGridChargeCheap does not fire when all prices are the same', () => {
     const data = [
       makeHour('2024-06-01T00:00:00Z', 0, 0, 0),
