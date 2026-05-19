@@ -7,7 +7,8 @@ const SUPPORTED_COUNTRIES = [
 
 export default function PriceConfig({ t, config, onChange, dataDateRange }) {
   const [loading, setLoading] = useState(false)
-  const [status, setStatus] = useState('') // '' | 'ok' | 'cached' | 'error'
+  const [status, setStatus] = useState('') // '' | 'ok' | 'error'
+  const [statusDetail, setStatusDetail] = useState('')
   const [loadedCount, setLoadedCount] = useState(0)
 
   const from = config.fromDate || dataDateRange?.from || ''
@@ -16,17 +17,20 @@ export default function PriceConfig({ t, config, onChange, dataDateRange }) {
   async function handleLoad() {
     if (!from || !to) {
       setStatus('error')
+      setStatusDetail('')
       return
     }
     setLoading(true)
     setStatus('')
+    setStatusDetail('')
     try {
       const map = await loadPricesForRange(config.country || 'NL', from, to)
       setLoadedCount(map.size)
       onChange({ ...config, hourlyPriceMap: map, fromDate: from, toDate: to })
       setStatus('ok')
-    } catch {
+    } catch (err) {
       setStatus('error')
+      setStatusDetail(err?.message ?? '')
     } finally {
       setLoading(false)
     }
@@ -90,7 +94,10 @@ export default function PriceConfig({ t, config, onChange, dataDateRange }) {
         </p>
       )}
       {status === 'error' && (
-        <p className="text-sm text-amber-700">⚠️ {t('fetchFailed')}</p>
+        <p className="text-sm text-amber-700">
+          ⚠️ {t('fetchFailed')}
+          {statusDetail && <span className="block text-xs mt-0.5 text-amber-600">{statusDetail}</span>}
+        </p>
       )}
       {status === '' && alreadyLoaded && (
         <p className="text-sm text-gray-500">

@@ -5,10 +5,18 @@ export async function fetchEnergyZeroPrices(fromDate, tillDate) {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`EnergyZero API error: ${res.status}`)
   const data = await res.json()
-  return (data.Prices || []).map(p => ({
-    timestamp: new Date(p.readingDate),
-    price: p.price / 100,
-  }))
+
+  // Handle both 'Prices' (original) and 'prices' (possible API update)
+  const raw = data.Prices ?? data.prices ?? []
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new Error(`EnergyZero returned no prices for ${fromDate} – ${tillDate}`)
+  }
+
+  return raw.map(p => ({
+    timestamp: new Date(p.readingDate ?? p.timestamp ?? p.date),
+    // API returns ct/kWh; guard against already-euro values (< 2 = likely €, > 2 = likely ct)
+    price: p.price > 2 ? p.price / 100 : p.price,
+  })).filter(p => !isNaN(p.timestamp) && isFinite(p.price))
 }
 
 export function buildHourlyPriceMap(prices) {
