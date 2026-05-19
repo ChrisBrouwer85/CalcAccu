@@ -182,7 +182,9 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     totalBatteryCharge += batteryCharge
     totalBatteryDischarge += batteryDischarge
 
-    const hourSell = sellPrice ?? buyPrice * 0.3
+    // Dynamic: use the same hourly price for selling (saldering / spot contract).
+    // Falls back to the fixed feed-in tariff only when no price map is loaded.
+    const hourSell = priceMap ? buyPrice : (sellPrice ?? 0.27)
 
     const hasSensorTariffs = sensorTariffs && Object.keys(sensorTariffs).length > 0
     const hasImportSensors = Object.keys(sensorImport).length > 0

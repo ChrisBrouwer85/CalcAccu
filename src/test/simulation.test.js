@@ -289,9 +289,9 @@ describe('runSimulation – smart EMS', () => {
     expect(result.hourly[1].gridExport).toBeCloseTo(5, 5)
   })
 
-  it('sell at peak earns more than never selling, with price-proportional sell tariff', () => {
+  it('sell at peak earns more than never selling (dynamic sell price = buy price)', () => {
     // Cheap hour: solar surplus stored; Peak hour: sell stored energy at high price
-    // sellPrice=null → hourSell = buyPrice * 0.3 (price-proportional)
+    // When priceMap is provided, hourSell = buyPrice (dynamic, same as import price)
     const data = [surplus(CHEAP, 5), empty(PEAK)]
     const map = twoHourMap(0.10, 0.40)
     const sellResult = runSimulation(data, BATTERY_10KWH, SMART_100, map, null)
