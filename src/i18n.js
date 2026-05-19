@@ -139,6 +139,9 @@ export const translations = {
     results: 'Results',
 
     // Results
+    currentNetCost: 'Current net cost',
+    simulatedNetCost: 'With battery',
+    basedOn: 'based on',
     annualSavings: 'Annual savings',
     payback: 'Payback period',
     selfSufficiency: 'Self-sufficiency',
@@ -347,6 +350,9 @@ export const translations = {
     noResultsYet: 'Kies minstens één accugrootte om resultaten te zien.',
     results: 'Resultaten',
 
+    currentNetCost: 'Huidige nettokosten',
+    simulatedNetCost: 'Met accu',
+    basedOn: 'gebaseerd op',
     annualSavings: 'Jaarlijkse besparing',
     payback: 'Terugverdientijd',
     selfSufficiency: 'Zelfvoorzienendheid',

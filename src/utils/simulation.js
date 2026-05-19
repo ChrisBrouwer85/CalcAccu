@@ -58,6 +58,10 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     baselineGridImport: 0,
     baselineGridExport: 0,
     savings: 0,
+    baselineCost: 0,
+    actualCost: 0,
+    baselineRevenue: 0,
+    actualRevenue: 0,
   }))
 
   let totalGridImport = 0
@@ -227,6 +231,10 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     mo.baselineGridImport += baselineImport
     mo.baselineGridExport += baselineExport
     mo.savings += hourSavings
+    mo.baselineCost += baselineCost
+    mo.actualCost += actualCost
+    mo.baselineRevenue += baselineRevenue
+    mo.actualRevenue += actualRevenue
 
     hourly.push({
       timestamp,
@@ -256,7 +264,17 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
   const periodDays = (firstTs && lastTs && lastTs > firstTs)
     ? (lastTs - firstTs) / 86400000 + 1
     : Math.max(1, hourlyData.length / 24)
-  const annualSavings = periodSavings * (365 / periodDays)
+  const scale = 365 / periodDays
+
+  const annualSavings = periodSavings * scale
+
+  const annualBaselineCost    = monthly.reduce((s, m) => s + m.baselineCost, 0)    * scale
+  const annualActualCost      = monthly.reduce((s, m) => s + m.actualCost, 0)      * scale
+  const annualBaselineRevenue = monthly.reduce((s, m) => s + m.baselineRevenue, 0) * scale
+  const annualActualRevenue   = monthly.reduce((s, m) => s + m.actualRevenue, 0)   * scale
+  // Net cost = what you pay minus what you earn from export
+  const annualBaselineNetCost = annualBaselineCost - annualBaselineRevenue
+  const annualActualNetCost   = annualActualCost   - annualActualRevenue
 
   return {
     hourly,
@@ -277,6 +295,12 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
       periodSavings,
       periodDays: Math.round(periodDays),
       annualSavings,
+      annualBaselineCost,
+      annualActualCost,
+      annualBaselineRevenue,
+      annualActualRevenue,
+      annualBaselineNetCost,
+      annualActualNetCost,
     },
   }
 }
