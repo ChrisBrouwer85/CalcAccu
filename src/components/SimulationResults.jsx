@@ -159,12 +159,12 @@ export default function SimulationResults({ t, results, costPerKwh }) {
   return (
     <div className="space-y-6">
       {/* Tab navigation */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
         {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 min-w-fit whitespace-nowrap py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+            className={`flex-1 min-w-0 py-2 px-1.5 sm:px-3 rounded-lg text-[11px] sm:text-sm font-medium leading-tight transition-all ${
               activeTab === tab.key
                 ? 'bg-white text-gray-900 shadow'
                 : 'text-gray-600 hover:text-gray-800'

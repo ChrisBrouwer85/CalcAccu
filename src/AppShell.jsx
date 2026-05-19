@@ -93,7 +93,7 @@ export default function AppShell() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
         <Outlet />
       </main>
     </div>
