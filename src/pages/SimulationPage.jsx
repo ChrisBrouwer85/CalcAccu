@@ -26,7 +26,8 @@ export default function SimulationPage() {
   })
   const [strategy, setStrategy] = useState({
     sellFraction: 0.5,
-    allowGridCharge: false,
+    allowGridChargeNegative: false,
+    allowGridChargeCheap: false,
   })
   const [sensorTariffs, setSensorTariffs] = useState({})
   const [monthRange, setMonthRange] = useState({ fromMonth: '', toMonth: '' })

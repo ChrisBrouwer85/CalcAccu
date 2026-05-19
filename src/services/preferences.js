@@ -13,7 +13,8 @@ export const DEFAULT_PREFERENCES = {
     },
     strategy: {
       sellFraction: 0.5,
-      allowGridCharge: false,
+      allowGridChargeNegative: false,
+      allowGridChargeCheap: false,
     },
     priceConfig: {
       country: 'NL',
@@ -33,7 +34,15 @@ function mergeDefaults(stored) {
     lang: stored.lang ?? DEFAULT_PREFERENCES.lang,
     defaults: {
       accuConfig: { ...DEFAULT_PREFERENCES.defaults.accuConfig, ...(stored.defaults?.accuConfig ?? {}) },
-      strategy: { ...DEFAULT_PREFERENCES.defaults.strategy, ...(stored.defaults?.strategy ?? {}) },
+      strategy: (() => {
+        const s = stored.defaults?.strategy ?? {}
+        // Migrate old allowGridCharge boolean to the two new flags
+        if ('allowGridCharge' in s && !('allowGridChargeNegative' in s)) {
+          const { allowGridCharge, ...rest } = s
+          return { ...DEFAULT_PREFERENCES.defaults.strategy, ...rest, allowGridChargeNegative: allowGridCharge, allowGridChargeCheap: allowGridCharge }
+        }
+        return { ...DEFAULT_PREFERENCES.defaults.strategy, ...s }
+      })(),
       priceConfig: { ...DEFAULT_PREFERENCES.defaults.priceConfig, ...(stored.defaults?.priceConfig ?? {}) },
     },
     sensorTariffs: stored.sensorTariffs ?? {},

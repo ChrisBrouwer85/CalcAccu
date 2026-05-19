@@ -251,7 +251,7 @@ describe('runSimulation – smart EMS', () => {
       { timestamp: ts1, price: 0.12 },
       { timestamp: ts2, price: 0.50 },
     ])
-    const strategy = { sellFraction: 0.5, allowGridCharge: true }
+    const strategy = { sellFraction: 0.5, allowGridChargeCheap: true }
     const result = runSimulation(data, BATTERY_10KWH, strategy, map, 0.10)
     // Cheap hours (rank <= sellFraction*0.5 = 0.25): battery should charge from grid
     expect(result.hourly[0].batteryCharge).toBeGreaterThan(0)

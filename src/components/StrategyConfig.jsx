@@ -1,6 +1,7 @@
 export default function StrategyConfig({ t, strategy, onChange, hasHourlyPrices }) {
   const sellFraction = strategy.sellFraction ?? 0.5
-  const allowGridCharge = strategy.allowGridCharge ?? false
+  const allowGridChargeNegative = strategy.allowGridChargeNegative ?? false
+  const allowGridChargeCheap = strategy.allowGridChargeCheap ?? false
 
   const sellFractionPct = Math.round(sellFraction * 100)
   const reservePct = 100 - sellFractionPct
@@ -67,16 +68,27 @@ export default function StrategyConfig({ t, strategy, onChange, hasHourlyPrices 
         </div>
       </div>
 
-      {/* Grid charge toggle */}
-      <label className="flex items-start gap-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={allowGridCharge}
-          onChange={e => onChange({ ...strategy, allowGridCharge: e.target.checked })}
-          className="mt-0.5 accent-blue-600 w-4 h-4 shrink-0"
-        />
-        <span className="text-sm text-gray-700">{t('emsGridCharge')}</span>
-      </label>
+      {/* Grid charge toggles */}
+      <div className="space-y-2">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allowGridChargeNegative}
+            onChange={e => onChange({ ...strategy, allowGridChargeNegative: e.target.checked })}
+            className="mt-0.5 accent-blue-600 w-4 h-4 shrink-0"
+          />
+          <span className="text-sm text-gray-700">{t('emsGridChargeNegative')}</span>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allowGridChargeCheap}
+            onChange={e => onChange({ ...strategy, allowGridChargeCheap: e.target.checked })}
+            className="mt-0.5 accent-blue-600 w-4 h-4 shrink-0"
+          />
+          <span className="text-sm text-gray-700">{t('emsGridChargeCheap')}</span>
+        </label>
+      </div>
     </div>
   )
 }

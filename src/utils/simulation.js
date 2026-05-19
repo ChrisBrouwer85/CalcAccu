@@ -41,7 +41,7 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     maxDischargeRateKw = 5,
   } = batteryConfig
 
-  const { sellFraction = 0.5, allowGridCharge = false } = strategy
+  const { sellFraction = 0.5, allowGridChargeNegative = false, allowGridChargeCheap = false } = strategy
 
   // Fallback all-in price used when no price map is loaded (€/kWh, NL 2025 estimate)
   const FALLBACK_PRICE = 0.27
@@ -118,8 +118,9 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     // Peak: top sellFraction of the day's prices → sell from battery
     // Strict > so the cheapest hour is never treated as peak (handles sellFraction=1 edge case)
     const isPeakHour = sellFraction > 0 && !allSame && rank > (1 - sellFraction)
-    // Cheap: bottom (sellFraction/2) → optionally charge from grid
-    const isCheapHour = allowGridCharge && !allSame && rank < sellFraction * 0.5
+    // Cheap-charge: negative price (always worthwhile) or bottom sellFraction/2 of the day
+    const isCheapHour = (allowGridChargeNegative && buyPrice < 0) ||
+      (allowGridChargeCheap && !allSame && rank < sellFraction * 0.5)
 
     if (isPeakHour) {
       if (net >= 0) {

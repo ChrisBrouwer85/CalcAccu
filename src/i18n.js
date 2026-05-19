@@ -97,7 +97,8 @@ export const translations = {
     emsSell: 'sell',
     emsSellPct: 'Sell from battery at the best daily price',
     emsReservePct: 'reserved for home use through the night',
-    emsGridCharge: 'Charge from grid at cheapest hours (arbitrage)',
+    emsGridChargeNegative: 'Charge from grid when price is negative',
+    emsGridChargeCheap: 'Charge from grid at cheapest hours (arbitrage)',
     emsNeedsPrices: 'Smart EMS requires hourly prices — load them in the Prices panel.',
 
     // Prices page
@@ -312,7 +313,8 @@ export const translations = {
     emsSell: 'verkoop',
     emsSellPct: 'Verkoop uit accu op het beste dagelijkse prijsmoment',
     emsReservePct: 'gereserveerd voor thuisgebruik gedurende de nacht',
-    emsGridCharge: 'Laden vanuit net op goedkoopste uren (arbitrage)',
+    emsGridChargeNegative: 'Laden vanuit net als prijs negatief is',
+    emsGridChargeCheap: 'Laden vanuit net op goedkoopste uren (arbitrage)',
     emsNeedsPrices: 'Slim EMS vereist uurprijzen — laad ze in het Prijzen-paneel.',
 
     // Prices page
