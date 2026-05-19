@@ -29,19 +29,19 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
         <div className="text-2xl font-bold text-gray-800">🔋 {size} kWh</div>
       </div>
       <div className="space-y-3">
-        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
           <span className="text-sm text-gray-500">{t('annualSavings')}</span>
           <span className={`font-bold text-lg ${savings > 0 ? 'text-green-600' : 'text-red-500'}`}>
             {fmtEur(savings)} / {t('years').replace('jaar','').replace('years','').trim() || 'yr'}
           </span>
         </div>
-        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
           <span className="text-sm text-gray-500">{t('payback')}</span>
           <span className="font-semibold text-gray-700">
             {isFinite(payback) ? `${fmt(payback, 1)} ${t('years')}` : '—'}
           </span>
         </div>
-        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
           <span className="text-sm text-gray-500">{t('selfSufficiency')}</span>
           <span className="font-semibold text-gray-700">
             {fmt(totals.selfSufficiency, 1)}%
@@ -50,7 +50,7 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
             )}
           </span>
         </div>
-        <div className="flex justify-between items-center py-2">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2">
           <span className="text-sm text-gray-500">{t('gridImportReduction')}</span>
           <span className="font-semibold text-gray-700">{fmt(importReduction, 0)} kWh</span>
         </div>

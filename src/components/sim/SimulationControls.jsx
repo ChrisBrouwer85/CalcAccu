@@ -10,12 +10,12 @@ function Section({ title, children, defaultOpen = true }) {
     <div className="border border-gray-200 rounded-xl bg-white">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full px-4 py-3 flex items-center justify-between text-left"
+        className="w-full px-3 sm:px-4 py-3 flex items-center justify-between text-left"
       >
-        <span className="font-semibold text-gray-800">{title}</span>
+        <span className="font-semibold text-gray-800 text-sm sm:text-base">{title}</span>
         <span className="text-gray-400">{open ? '▾' : '▸'}</span>
       </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
+      {open && <div className="px-3 sm:px-4 pb-4">{children}</div>}
     </div>
   )
 }
