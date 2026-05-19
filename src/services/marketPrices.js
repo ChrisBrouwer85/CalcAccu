@@ -16,23 +16,33 @@ function monthsInRange(fromDate, toDate) {
 
 async function getCachedMonth(country, yearMonth) {
   if (!db) return null
-  const snap = await getDoc(doc(db, 'marketPrices', `${country}-${yearMonth}`))
-  if (!snap.exists()) return null
-  return snap.data().hours // [{h, buy}]
+  try {
+    const snap = await getDoc(doc(db, 'marketPrices', `${country}-${yearMonth}`))
+    if (!snap.exists()) return null
+    return snap.data().hours ?? null // [{h, buy}]
+  } catch {
+    // Firestore unavailable or permission denied → fall through to API fetch
+    return null
+  }
 }
 
 async function setCachedMonth(country, yearMonth, hours) {
   if (!db) return
-  await setDoc(doc(db, 'marketPrices', `${country}-${yearMonth}`), {
-    country,
-    month: yearMonth,
-    hours,
-    fetchedAt: Timestamp.now(),
-  })
+  try {
+    await setDoc(doc(db, 'marketPrices', `${country}-${yearMonth}`), {
+      country,
+      month: yearMonth,
+      hours,
+      fetchedAt: Timestamp.now(),
+    })
+  } catch {
+    // Cache write failed — non-critical, API data is still usable
+  }
 }
 
 // Returns Map<hourKey, number> for the entire from→to range.
 // Checks Firestore cache per month; fetches from EnergyZero for missing months.
+// Firestore errors are non-fatal: always falls back to the API.
 export async function loadPricesForRange(country, fromDate, toDate) {
   if (country !== 'NL') throw new Error(`Unsupported country: ${country}. Only NL is supported.`)
 
@@ -43,27 +53,21 @@ export async function loadPricesForRange(country, fromDate, toDate) {
     let cached = await getCachedMonth(country, yearMonth)
     if (!cached) {
       const [year, month] = yearMonth.split('-').map(Number)
-      const fetchFrom = new Date(year, month - 1, 1)
-      const fetchTill = new Date(year, month, 1) // first day of next month
-      const prices = await fetchEnergyZeroPrices(
-        fetchFrom.toISOString().slice(0, 10),
-        fetchTill.toISOString().slice(0, 10),
-      )
+      // Fetch the full calendar month; EnergyZero wants ISO date strings
+      const fetchFrom = new Date(Date.UTC(year, month - 1, 1)).toISOString().slice(0, 10)
+      const fetchTill = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10)
+      const prices = await fetchEnergyZeroPrices(fetchFrom, fetchTill)
       cached = prices.map(p => ({ h: hourKey(p.timestamp), buy: p.price }))
       await setCachedMonth(country, yearMonth, cached)
     }
     allHours.push(...cached)
   }
 
-  // Filter to the exact requested range and build map
-  const fromTs = new Date(fromDate).getTime()
-  const toTs = new Date(toDate + 'T23:59:59').getTime()
+  // Build map from all fetched/cached hours (no extra filtering — the month
+  // boundaries already cover the requested range)
   const map = new Map()
   for (const { h, buy } of allHours) {
-    const ts = new Date(h).getTime()
-    if (ts >= fromTs && ts <= toTs) {
-      map.set(h, buy)
-    }
+    map.set(h, buy)
   }
   return map
 }
