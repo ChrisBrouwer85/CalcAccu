@@ -140,7 +140,7 @@ export default function SimulationPage() {
   }
 
   return (
-    <div className="grid lg:grid-cols-[360px_1fr] gap-6">
+    <div className="grid lg:grid-cols-[360px_1fr] gap-4 sm:gap-6">
       <aside>
         <SimulationControls
           monthRange={monthRange}
@@ -156,10 +156,10 @@ export default function SimulationPage() {
         />
       </aside>
 
-      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800">🎯 {t('results')}</h2>
-          {dataLoading && <span className="text-xs text-gray-400">{t('recomputing')}…</span>}
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-800">🎯 {t('results')}</h2>
+          {dataLoading && <span className="text-xs text-gray-400 shrink-0">{t('recomputing')}…</span>}
         </div>
         {!simulationResults ? (
           <div className="text-sm text-gray-500">

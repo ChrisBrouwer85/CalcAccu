@@ -12,17 +12,17 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">{t('settingsAccount')}</h2>
         <AccountSection />
       </section>
 
-      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">{t('settingsDefaults')}</h2>
         <DefaultsSection />
       </section>
 
-      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">{t('settingsDanger')}</h2>
         <DangerZone stats={stats} onCleared={reload} />
       </section>

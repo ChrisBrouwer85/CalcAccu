@@ -19,7 +19,7 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
   const importReduction = totals.baselineGridImport - totals.gridImport
 
   return (
-    <div className={`relative bg-white rounded-2xl border-2 p-5 ${isBest ? 'border-green-400 shadow-lg' : 'border-gray-200'}`}>
+    <div className={`relative bg-white rounded-2xl border-2 p-4 sm:p-5 ${isBest ? 'border-green-400 shadow-lg' : 'border-gray-200'}`}>
       {isBest && (
         <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
           ⭐ {t('bestValue')}
@@ -159,12 +159,12 @@ export default function SimulationResults({ t, results, costPerKwh }) {
   return (
     <div className="space-y-6">
       {/* Tab navigation */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
         {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-fit whitespace-nowrap py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition-all ${
               activeTab === tab.key
                 ? 'bg-white text-gray-900 shadow'
                 : 'text-gray-600 hover:text-gray-800'
@@ -199,7 +199,7 @@ export default function SimulationResults({ t, results, costPerKwh }) {
           </div>
           <div className="mt-6">
             <h4 className="font-semibold text-gray-700 mb-3 text-sm">{t('savings')} vs. amortized cost (15yr)</h4>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-2 sm:p-4">
               <SavingsChart t={t} results={results} costPerKwh={costPerKwh} />
             </div>
           </div>
@@ -209,9 +209,9 @@ export default function SimulationResults({ t, results, costPerKwh }) {
       {/* Energy flow */}
       {activeTab === 'flow' && (
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center gap-2 justify-between mb-3">
             <span className="text-sm text-gray-600">{t('selectSize')}:</span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {results.map(({ sizeKwh }, i) => (
                 <button
                   key={sizeKwh}
@@ -236,9 +236,9 @@ export default function SimulationResults({ t, results, costPerKwh }) {
       {/* Monthly breakdown */}
       {activeTab === 'monthly' && (
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center gap-2 justify-between mb-3">
             <span className="text-sm text-gray-600">{t('selectSize')}:</span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {results.map(({ sizeKwh }, i) => (
                 <button
                   key={sizeKwh}
