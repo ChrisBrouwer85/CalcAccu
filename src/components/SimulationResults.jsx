@@ -177,7 +177,7 @@ export default function SimulationResults({ t, results, costPerKwh }) {
 
       {/* Summary */}
       {activeTab === 'summary' && (
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 min-w-0">
           {results.map(({ sizeKwh, result }, i) => (
             <SummaryCard
               key={sizeKwh}
@@ -193,13 +193,13 @@ export default function SimulationResults({ t, results, costPerKwh }) {
 
       {/* Annual comparison */}
       {activeTab === 'annual' && (
-        <div>
+        <div className="min-w-0">
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <AnnualTable results={results} t={t} costPerKwh={costPerKwh} />
           </div>
-          <div className="mt-6">
+          <div className="mt-6 min-w-0">
             <h4 className="font-semibold text-gray-700 mb-3 text-sm">{t('savings')} vs. amortized cost (15yr)</h4>
-            <div className="bg-white rounded-xl border border-gray-200 p-2 sm:p-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-2 sm:p-4 min-w-0">
               <SavingsChart t={t} results={results} costPerKwh={costPerKwh} />
             </div>
           </div>
@@ -208,7 +208,7 @@ export default function SimulationResults({ t, results, costPerKwh }) {
 
       {/* Energy flow */}
       {activeTab === 'flow' && (
-        <div>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 justify-between mb-3">
             <span className="text-sm text-gray-600">{t('selectSize')}:</span>
             <div className="flex flex-wrap gap-2">
@@ -227,7 +227,7 @@ export default function SimulationResults({ t, results, costPerKwh }) {
               ))}
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-2 sm:p-4 min-w-0">
             <EnergyFlowChart t={t} hourly={results[selectedResultIdx]?.result.hourly} />
           </div>
         </div>
