@@ -1,3 +1,18 @@
+// Dutch energiebelasting (electricity, residential, first bracket ≤ 2500 kWh/yr), excl. BTW.
+// From 2023 the ODE surcharge was merged into EB. Rates published by Belastingdienst annually.
+const EB_RATE_EXCL_VAT = {
+  2022: 0.11527,  // EB €0.09952 + ODE €0.01575
+  2023: 0.12795,
+  2024: 0.12599,
+  2025: 0.10628,
+}
+const VAT = 0.21
+const EB_FALLBACK_YEAR = 2025
+
+function energieBelastingInclVat(year) {
+  return (EB_RATE_EXCL_VAT[year] ?? EB_RATE_EXCL_VAT[EB_FALLBACK_YEAR]) * (1 + VAT)
+}
+
 export async function fetchEnergyZeroPrices(fromDate, tillDate) {
   const from = new Date(fromDate).toISOString()
   const till = new Date(tillDate).toISOString()
@@ -12,11 +27,14 @@ export async function fetchEnergyZeroPrices(fromDate, tillDate) {
     throw new Error(`EnergyZero returned no prices for ${fromDate} – ${tillDate}`)
   }
 
-  return raw.map(p => ({
-    timestamp: new Date(p.readingDate ?? p.timestamp ?? p.date),
-    // API returns ct/kWh; guard against already-euro values (< 2 = likely €, > 2 = likely ct)
-    price: p.price > 2 ? p.price / 100 : p.price,
-  })).filter(p => !isNaN(p.timestamp) && isFinite(p.price))
+  return raw.map(p => {
+    const timestamp = new Date(p.readingDate ?? p.timestamp ?? p.date)
+    // API returns ct/kWh in older versions; guard: > 2 means ct/kWh, else already €/kWh
+    const marketInclVat = p.price > 2 ? p.price / 100 : p.price
+    // Add energiebelasting so prices match the all-in rates shown on energyzero.nl
+    const price = marketInclVat + energieBelastingInclVat(timestamp.getFullYear())
+    return { timestamp, price }
+  }).filter(p => !isNaN(p.timestamp) && isFinite(p.price))
 }
 
 export function buildHourlyPriceMap(prices) {

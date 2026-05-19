@@ -14,10 +14,14 @@ function monthsInRange(fromDate, toDate) {
   return months
 }
 
+// v2 suffix distinguishes all-in prices (market + VAT + energiebelasting) from
+// the earlier cache (market + VAT only) so old entries are never reused.
+function cacheKey(country, yearMonth) { return `${country}-${yearMonth}-v2` }
+
 async function getCachedMonth(country, yearMonth) {
   if (!db) return null
   try {
-    const snap = await getDoc(doc(db, 'marketPrices', `${country}-${yearMonth}`))
+    const snap = await getDoc(doc(db, 'marketPrices', cacheKey(country, yearMonth)))
     if (!snap.exists()) return null
     return snap.data().hours ?? null // [{h, buy}]
   } catch {
@@ -29,7 +33,7 @@ async function getCachedMonth(country, yearMonth) {
 async function setCachedMonth(country, yearMonth, hours) {
   if (!db) return
   try {
-    await setDoc(doc(db, 'marketPrices', `${country}-${yearMonth}`), {
+    await setDoc(doc(db, 'marketPrices', cacheKey(country, yearMonth)), {
       country,
       month: yearMonth,
       hours,
