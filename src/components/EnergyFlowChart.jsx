@@ -87,6 +87,14 @@ export default function EnergyFlowChart({ t, hourly }) {
     return aggregateDaily(hourly)
   }, [hourly, resolution, t])
 
+  if (!hourly?.length) {
+    return (
+      <p className="text-sm text-gray-400 text-center py-10">
+        {t('flowChartUnavailable')}
+      </p>
+    )
+  }
+
   const resolutions = [
     { value: 'monthly', label: t('resMonthly') },
     { value: 'weekly', label: t('resWeekly') },
@@ -110,7 +118,7 @@ export default function EnergyFlowChart({ t, hourly }) {
           </button>
         ))}
       </div>
-      <ResponsiveContainer width="100%" height={340}>
+      <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis dataKey="label" tick={{ fontSize: 11 }} />

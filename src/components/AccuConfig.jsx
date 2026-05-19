@@ -22,20 +22,20 @@ export default function AccuConfig({ t, config, onChange }) {
       {/* Preset sizes */}
       <div>
         <h3 className="font-semibold text-gray-800 mb-3">{t('accuSizes')}</h3>
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-3">
           {PRESET_SIZES.map(size => {
             const selected = config.selectedSizes.includes(size)
             return (
               <button
                 key={size}
                 onClick={() => toggleSize(size)}
-                className={`px-5 py-3 rounded-xl border-2 font-medium transition-all ${
+                className={`px-3 sm:px-5 py-2.5 sm:py-3 rounded-xl border-2 font-medium transition-all ${
                   selected
                     ? 'border-green-500 bg-green-50 text-green-800'
                     : 'border-gray-200 bg-white text-gray-600 hover:border-green-300'
                 }`}
               >
-                <div className="text-xl font-bold">{size} kWh</div>
+                <div className="text-base sm:text-xl font-bold">{size} kWh</div>
                 <div className="text-xs mt-0.5 opacity-70">
                   ≈ €{(DEFAULT_COSTS[size] ?? size * 400).toLocaleString()}
                 </div>
