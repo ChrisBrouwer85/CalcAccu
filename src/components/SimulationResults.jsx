@@ -19,7 +19,7 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
   const importReduction = totals.baselineGridImport - totals.gridImport
 
   return (
-    <div className={`relative bg-white rounded-2xl border-2 p-5 ${isBest ? 'border-green-400 shadow-lg' : 'border-gray-200'}`}>
+    <div className={`relative bg-white rounded-2xl border-2 p-4 sm:p-5 ${isBest ? 'border-green-400 shadow-lg' : 'border-gray-200'}`}>
       {isBest && (
         <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
           ⭐ {t('bestValue')}
@@ -29,19 +29,19 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
         <div className="text-2xl font-bold text-gray-800">🔋 {size} kWh</div>
       </div>
       <div className="space-y-3">
-        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
           <span className="text-sm text-gray-500">{t('annualSavings')}</span>
           <span className={`font-bold text-lg ${savings > 0 ? 'text-green-600' : 'text-red-500'}`}>
             {fmtEur(savings)} / {t('years').replace('jaar','').replace('years','').trim() || 'yr'}
           </span>
         </div>
-        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
           <span className="text-sm text-gray-500">{t('payback')}</span>
           <span className="font-semibold text-gray-700">
             {isFinite(payback) ? `${fmt(payback, 1)} ${t('years')}` : '—'}
           </span>
         </div>
-        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
           <span className="text-sm text-gray-500">{t('selfSufficiency')}</span>
           <span className="font-semibold text-gray-700">
             {fmt(totals.selfSufficiency, 1)}%
@@ -50,7 +50,7 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
             )}
           </span>
         </div>
-        <div className="flex justify-between items-center py-2">
+        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2">
           <span className="text-sm text-gray-500">{t('gridImportReduction')}</span>
           <span className="font-semibold text-gray-700">{fmt(importReduction, 0)} kWh</span>
         </div>
@@ -164,7 +164,7 @@ export default function SimulationResults({ t, results, costPerKwh }) {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 min-w-0 py-2 px-1.5 sm:px-3 rounded-lg text-[11px] sm:text-sm font-medium leading-tight transition-all ${
               activeTab === tab.key
                 ? 'bg-white text-gray-900 shadow'
                 : 'text-gray-600 hover:text-gray-800'
@@ -177,7 +177,7 @@ export default function SimulationResults({ t, results, costPerKwh }) {
 
       {/* Summary */}
       {activeTab === 'summary' && (
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3 min-w-0">
           {results.map(({ sizeKwh, result }, i) => (
             <SummaryCard
               key={sizeKwh}
@@ -193,13 +193,13 @@ export default function SimulationResults({ t, results, costPerKwh }) {
 
       {/* Annual comparison */}
       {activeTab === 'annual' && (
-        <div>
+        <div className="min-w-0">
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <AnnualTable results={results} t={t} costPerKwh={costPerKwh} />
           </div>
-          <div className="mt-6">
+          <div className="mt-6 min-w-0">
             <h4 className="font-semibold text-gray-700 mb-3 text-sm">{t('savings')} vs. amortized cost (15yr)</h4>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-2 sm:p-4 min-w-0">
               <SavingsChart t={t} results={results} costPerKwh={costPerKwh} />
             </div>
           </div>
@@ -208,10 +208,10 @@ export default function SimulationResults({ t, results, costPerKwh }) {
 
       {/* Energy flow */}
       {activeTab === 'flow' && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 justify-between mb-3">
             <span className="text-sm text-gray-600">{t('selectSize')}:</span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {results.map(({ sizeKwh }, i) => (
                 <button
                   key={sizeKwh}
@@ -227,7 +227,7 @@ export default function SimulationResults({ t, results, costPerKwh }) {
               ))}
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-2 sm:p-4 min-w-0">
             <EnergyFlowChart t={t} hourly={results[selectedResultIdx]?.result.hourly} />
           </div>
         </div>
@@ -236,9 +236,9 @@ export default function SimulationResults({ t, results, costPerKwh }) {
       {/* Monthly breakdown */}
       {activeTab === 'monthly' && (
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center gap-2 justify-between mb-3">
             <span className="text-sm text-gray-600">{t('selectSize')}:</span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {results.map(({ sizeKwh }, i) => (
                 <button
                   key={sizeKwh}

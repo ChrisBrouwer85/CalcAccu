@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 
 const {
   VITE_FIREBASE_API_KEY: apiKey,
@@ -12,6 +13,9 @@ const {
 
 export const firebaseConfigured = Boolean(apiKey && authDomain && projectId && appId)
 
-export const auth = firebaseConfigured
-  ? getAuth(initializeApp({ apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId }))
+const app = firebaseConfigured
+  ? initializeApp({ apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId })
   : null
+
+export const auth = app ? getAuth(app) : null
+export const db = app ? getFirestore(app) : null
