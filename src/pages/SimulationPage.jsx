@@ -23,8 +23,6 @@ export default function SimulationPage() {
     costPerKwh: 500,
   })
   const [strategy, setStrategy] = useState({
-    mode: 'fixed',
-    homePriority: 0.8,
     sellFraction: 0.5,
     allowGridCharge: false,
   })

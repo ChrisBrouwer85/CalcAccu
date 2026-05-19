@@ -90,17 +90,8 @@ export const translations = {
     advancedSettings: 'Advanced settings',
     accuCostDefaults: 'Default battery costs: 5 kWh = €2,000 · 10 kWh = €3,500 · 15 kWh = €5,000 · 20 kWh = €6,500',
 
-    // Strategy
-    strategyTitle: 'Energy Strategy',
-    strategyDesc: 'Adjust how the battery prioritizes home consumption vs. selling to the market.',
-    homePriority: 'Maximize self-consumption',
-    sellPriority: 'Sell to market',
-    homeUsePct: 'Home use priority',
-
-    // Smart EMS
-    emsMode: 'Energy Management Mode',
-    emsFixed: 'Fixed',
-    emsSmart: 'Smart EMS',
+    // Strategy / Smart EMS
+    strategyTitle: 'Smart EMS',
     emsSmartDesc: 'Uses day-ahead market prices to decide the best moment to sell stored energy.',
     emsSellPct: 'Sell from battery at the best daily price',
     emsReservePct: 'reserved for home use through the night',
@@ -293,16 +284,8 @@ export const translations = {
     advancedSettings: 'Geavanceerde instellingen',
     accuCostDefaults: 'Standaard accukosten: 5 kWh = €2.000 · 10 kWh = €3.500 · 15 kWh = €5.000 · 20 kWh = €6.500',
 
-    strategyTitle: 'Energiestrategie',
-    strategyDesc: 'Stel in hoe de accu thuisgebruik prioriteert versus verkopen aan het net.',
-    homePriority: 'Thuisgebruik maximaliseren',
-    sellPriority: 'Verkopen aan net',
-    homeUsePct: 'Prioriteit thuisgebruik',
-
-    // Smart EMS
-    emsMode: 'Energiebeheerstand',
-    emsFixed: 'Vast',
-    emsSmart: 'Slim EMS',
+    // Strategy / Smart EMS
+    strategyTitle: 'Slim EMS',
     emsSmartDesc: 'Gebruikt dag-van-tevoren marktprijzen om het beste moment te kiezen voor teruglevering.',
     emsSellPct: 'Verkoop uit accu op het beste dagelijkse prijsmoment',
     emsReservePct: 'gereserveerd voor thuisgebruik gedurende de nacht',

@@ -32,7 +32,8 @@ const BATTERY_10KWH = {
   maxDischargeRateKw: 10,
 }
 
-const STRATEGY_HOME = { mode: 'fixed', homePriority: 1.0 }
+// sellFraction=0: never sells — always maximizes self-consumption
+const STRATEGY_HOME = { sellFraction: 0.0, allowGridCharge: false }
 
 describe('runSimulation – basic energy balance', () => {
   it('charges battery from solar surplus', () => {
@@ -190,9 +191,9 @@ describe('runSimulation – smart EMS', () => {
   function deficit(ts, kwh) { return makeHour(ts, 0, kwh, 0) }
   function empty(ts)        { return makeHour(ts, 0, 0, 0) }
 
-  const SMART_50  = { mode: 'smart', sellFraction: 0.5, allowGridCharge: false }
-  const SMART_100 = { mode: 'smart', sellFraction: 1.0, allowGridCharge: false }
-  const SMART_0   = { mode: 'smart', sellFraction: 0.0, allowGridCharge: false }
+  const SMART_50  = { sellFraction: 0.5, allowGridCharge: false }
+  const SMART_100 = { sellFraction: 1.0, allowGridCharge: false }
+  const SMART_0   = { sellFraction: 0.0, allowGridCharge: false }
 
   const CHEAP = '2024-06-01T00:00:00Z'
   const PEAK  = '2024-06-01T12:00:00Z'
@@ -250,23 +251,24 @@ describe('runSimulation – smart EMS', () => {
       { timestamp: ts1, price: 0.12 },
       { timestamp: ts2, price: 0.50 },
     ])
-    const strategy = { mode: 'smart', sellFraction: 0.5, allowGridCharge: true }
+    const strategy = { sellFraction: 0.5, allowGridCharge: true }
     const result = runSimulation(data, BATTERY_10KWH, strategy, map, 0.10)
     // Cheap hours (rank <= sellFraction*0.5 = 0.25): battery should charge from grid
     expect(result.hourly[0].batteryCharge).toBeGreaterThan(0)
     expect(result.hourly[0].gridImport).toBeGreaterThan(0)
   })
 
-  it('all-same prices: smart mode behaves identically to fixed homePriority=1', () => {
+  it('all-same prices: no peak hours triggered, battery only serves home consumption', () => {
     const data = [
       makeHour('2024-06-01T10:00:00Z', 8, 0, 3),
       makeHour('2024-06-01T20:00:00Z', 0, 5, 0),
     ]
     const map = flatPriceMap(data, 0.30)
-    const smartResult = runSimulation(data, BATTERY_10KWH, SMART_50, map, 0.10)
-    const fixedResult = runSimulation(data, BATTERY_10KWH, { mode: 'fixed', homePriority: 1.0 }, map, 0.10)
-    expect(smartResult.totals.gridImport).toBeCloseTo(fixedResult.totals.gridImport, 5)
-    expect(smartResult.totals.gridExport).toBeCloseTo(fixedResult.totals.gridExport, 5)
+    // With flat prices allSame=true → isPeakHour always false → no selling
+    const result = runSimulation(data, BATTERY_10KWH, SMART_50, map, 0.10)
+    // Battery should never export to grid (only discharges for home deficit)
+    expect(result.hourly[0].gridExport).toBe(0) // surplus hour: solar fills battery, no grid export
+    expect(result.hourly[1].batteryDischarge).toBeGreaterThan(0) // deficit hour: battery covers home
   })
 
   it('sellFraction=0: battery never sells to grid at peak', () => {
@@ -287,17 +289,13 @@ describe('runSimulation – smart EMS', () => {
     expect(result.hourly[1].gridExport).toBeCloseTo(5, 5)
   })
 
-  it('smart EMS earns more than fixed mode by timing sales at peak-price hours', () => {
-    // Cheap hour: solar surplus exported at cheap sell price (0.10 * 0.3 = 0.03/kWh)
-    // Peak hour:  smart sells stored battery at peak sell price  (0.40 * 0.3 = 0.12/kWh)
-    // Fixed mode: stores solar but never sells (no deficit at peak) → loses baseline revenue
+  it('sell at peak earns more than never selling, with price-proportional sell tariff', () => {
+    // Cheap hour: solar surplus stored; Peak hour: sell stored energy at high price
     // sellPrice=null → hourSell = buyPrice * 0.3 (price-proportional)
     const data = [surplus(CHEAP, 5), empty(PEAK)]
     const map = twoHourMap(0.10, 0.40)
-    const smartResult = runSimulation(data, BATTERY_10KWH, SMART_100, map, null)
-    const fixedResult = runSimulation(data, BATTERY_10KWH, STRATEGY_HOME, map, null)
-    // Smart stores cheap solar, sells at peak (0.12/kWh) → positive vs baseline
-    // Fixed stores solar but nothing to discharge for home → loses baseline sell revenue
-    expect(smartResult.financial.annualSavings).toBeGreaterThan(fixedResult.financial.annualSavings)
+    const sellResult = runSimulation(data, BATTERY_10KWH, SMART_100, map, null)
+    const homeResult = runSimulation(data, BATTERY_10KWH, SMART_0, map, null)
+    expect(sellResult.financial.annualSavings).toBeGreaterThan(homeResult.financial.annualSavings)
   })
 })
