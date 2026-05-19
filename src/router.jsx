@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+import { createHashRouter, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 import AppShell from './AppShell.jsx'
 import AuthPage from './components/AuthPage.jsx'
@@ -34,7 +34,11 @@ function PublicOnly() {
   return <Outlet />
 }
 
-export const router = createBrowserRouter([
+// HashRouter so deep links survive page refresh under GitHub Pages'
+// static hosting without needing a 404.html SPA shim. URLs look like
+// /CalcAccu/#/data — the path before the # is the deployed base, the
+// part after is the in-app route.
+export const router = createHashRouter([
   {
     element: <PublicOnly />,
     children: [
@@ -56,4 +60,4 @@ export const router = createBrowserRouter([
       },
     ],
   },
-], { basename: import.meta.env.BASE_URL.replace(/\/$/, '') || '/' })
+])
