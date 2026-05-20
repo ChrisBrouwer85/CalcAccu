@@ -11,11 +11,12 @@ export const DEFAULT_PREFERENCES = {
       maxRateKw: 5,
       costPerKwh: 500,
     },
-    homePriority: 0.8,
+    strategy: {
+      sellFraction: 0.5,
+      allowGridChargeCheap: false,
+    },
     priceConfig: {
-      source: 'static',
-      selectedYear: '2024',
-      buyPrice: 0.29,
+      country: 'NL',
       sellPrice: 0.10,
     },
   },
@@ -32,11 +33,17 @@ function mergeDefaults(stored) {
     lang: stored.lang ?? DEFAULT_PREFERENCES.lang,
     defaults: {
       accuConfig: { ...DEFAULT_PREFERENCES.defaults.accuConfig, ...(stored.defaults?.accuConfig ?? {}) },
-      homePriority: stored.defaults?.homePriority ?? DEFAULT_PREFERENCES.defaults.homePriority,
+      strategy: (() => {
+        const { allowGridCharge, allowGridChargeNegative, ...s } = stored.defaults?.strategy ?? {}
+        // allowGridCharge and allowGridChargeNegative are obsolete — negative-price charging
+        // is now always active; allowGridChargeCheap is the only remaining flag.
+        // Migrate: if either old flag was on, enable allowGridChargeCheap too.
+        const cheapFromMigration = (allowGridCharge || allowGridChargeNegative) ? { allowGridChargeCheap: true } : {}
+        return { ...DEFAULT_PREFERENCES.defaults.strategy, ...s, ...cheapFromMigration }
+      })(),
       priceConfig: { ...DEFAULT_PREFERENCES.defaults.priceConfig, ...(stored.defaults?.priceConfig ?? {}) },
     },
     sensorTariffs: stored.sensorTariffs ?? {},
-    legacyCleanedAt: stored.legacyCleanedAt ?? null,
   }
 }
 

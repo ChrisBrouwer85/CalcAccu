@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useLang } from '../context/LangContext.jsx'
+import { usePriceConfig } from '../context/PriceContext.jsx'
 import { useEnergyStats } from '../hooks/useEnergyStats.js'
 import { useEnergyData } from '../hooks/useEnergyData.js'
 import { getPreferences } from '../services/preferences.js'
 import { runSimulation } from '../utils/simulation.js'
-import { getStaticPricesForYear, getStaticPriceMap } from '../utils/energyPrices.js'
 import SimulationControls from '../components/sim/SimulationControls.jsx'
 import SimulationResults from '../components/SimulationResults.jsx'
 
@@ -14,6 +14,7 @@ export default function SimulationPage() {
   const { user } = useAuth()
   const { t } = useLang()
   const { stats, loading: statsLoading } = useEnergyStats(user?.uid)
+  const { priceConfig, setPriceConfig } = usePriceConfig()
 
   const [prefsLoaded, setPrefsLoaded] = useState(false)
   const [accuConfig, setAccuConfig] = useState({
@@ -23,18 +24,11 @@ export default function SimulationPage() {
     maxRateKw: 5,
     costPerKwh: 500,
   })
-  const [homePriority, setHomePriority] = useState(0.8)
-  const [priceConfig, setPriceConfig] = useState({
-    source: 'static',
-    selectedYear: '2024',
-    buyPrice: 0.29,
-    sellPrice: 0.10,
-    fromDate: '',
-    toDate: '',
-    hourlyPriceMap: null,
+  const [strategy, setStrategy] = useState({
+    sellFraction: 0.5,
+    allowGridChargeCheap: false,
   })
   const [sensorTariffs, setSensorTariffs] = useState({})
-
   const [monthRange, setMonthRange] = useState({ fromMonth: '', toMonth: '' })
 
   // Seed configs from preferences (once per user)
@@ -44,20 +38,30 @@ export default function SimulationPage() {
     getPreferences(user.uid).then(prefs => {
       if (cancelled) return
       setAccuConfig(prev => ({ ...prev, ...prefs.defaults.accuConfig }))
-      setHomePriority(prefs.defaults.homePriority)
+      setStrategy(prev => ({ ...prev, ...prefs.defaults.strategy }))
       setPriceConfig(prev => ({ ...prev, ...prefs.defaults.priceConfig }))
       setSensorTariffs(prefs.sensorTariffs ?? {})
       setPrefsLoaded(true)
     }).catch(() => setPrefsLoaded(true))
     return () => { cancelled = true }
-  }, [user])
+  }, [user, setPriceConfig])
 
-  // Seed range from available data
+  // Seed simulation month range from available data
   useEffect(() => {
     if (stats?.firstMonthId && stats?.lastMonthId && !monthRange.fromMonth) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMonthRange({ fromMonth: stats.firstMonthId, toMonth: stats.lastMonthId })
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stats?.firstMonthId, stats?.lastMonthId])
+
+  // Seed price date range so prices auto-load even when user hasn't visited /prices
+  useEffect(() => {
+    if (!stats?.firstMonthId || !stats?.lastMonthId || priceConfig.fromDate) return
+    const from = stats.firstMonthId + '-01'
+    const [y, m] = stats.lastMonthId.split('-').map(Number)
+    const to = `${stats.lastMonthId}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+    setPriceConfig(prev => ({ ...prev, fromDate: from, toDate: to }))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats?.firstMonthId, stats?.lastMonthId])
 
@@ -71,16 +75,6 @@ export default function SimulationPage() {
 
   const { data: energyData, loading: dataLoading } = useEnergyData(user?.uid, effectiveRange)
 
-  const dataDateRange = useMemo(() => {
-    if (!energyData || energyData.length === 0) return null
-    const first = energyData[0].timestamp
-    const last = energyData[energyData.length - 1].timestamp
-    return {
-      from: first.toISOString().slice(0, 10),
-      to: last.toISOString().slice(0, 10),
-    }
-  }, [energyData])
-
   const simulationResults = useMemo(() => {
     if (!energyData || energyData.length === 0) return null
     const allSizes = [
@@ -88,18 +82,6 @@ export default function SimulationPage() {
       accuConfig.customSize ? parseFloat(accuConfig.customSize) : null,
     ].filter(s => s && isFinite(s))
     if (allSizes.length === 0) return null
-
-    let priceMap = null
-    let sellPrice = priceConfig.sellPrice
-    if (priceConfig.source === 'api' && priceConfig.hourlyPriceMap) {
-      priceMap = priceConfig.hourlyPriceMap
-    } else {
-      const yr = parseInt(priceConfig.selectedYear) || 2024
-      const staticPrices = getStaticPricesForYear(yr)
-      const buyPrice = priceConfig.source === 'manual' ? priceConfig.buyPrice : staticPrices.buy
-      sellPrice = priceConfig.source === 'manual' ? priceConfig.sellPrice : staticPrices.sell
-      priceMap = getStaticPriceMap(energyData, buyPrice)
-    }
 
     return allSizes.map(size => ({
       sizeKwh: size,
@@ -112,13 +94,13 @@ export default function SimulationPage() {
           maxChargeRateKw: accuConfig.maxRateKw,
           maxDischargeRateKw: accuConfig.maxRateKw,
         },
-        { homePriority },
-        priceMap,
-        sellPrice,
+        strategy,
+        priceConfig.hourlyPriceMap ?? null,
+        priceConfig.sellPrice ?? 0.10,
         sensorTariffs,
       ),
     }))
-  }, [energyData, accuConfig, homePriority, priceConfig, sensorTariffs])
+  }, [energyData, accuConfig, strategy, priceConfig, sensorTariffs])
 
   if (statsLoading || !prefsLoaded) {
     return <div className="text-sm text-gray-400">{t('loading')}</div>
@@ -148,11 +130,8 @@ export default function SimulationPage() {
           availableRange={stats}
           accuConfig={accuConfig}
           setAccuConfig={setAccuConfig}
-          homePriority={homePriority}
-          setHomePriority={setHomePriority}
-          priceConfig={priceConfig}
-          setPriceConfig={setPriceConfig}
-          dataDateRange={dataDateRange}
+          strategy={strategy}
+          setStrategy={setStrategy}
         />
       </aside>
 

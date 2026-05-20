@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import AccuConfig from '../AccuConfig.jsx'
 import StrategyConfig from '../StrategyConfig.jsx'
-import PriceConfig from '../PriceConfig.jsx'
 import { useLang } from '../../context/LangContext.jsx'
+import { usePriceConfig } from '../../context/PriceContext.jsx'
 
 function Section({ title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -26,13 +26,12 @@ export default function SimulationControls({
   availableRange,
   accuConfig,
   setAccuConfig,
-  homePriority,
-  setHomePriority,
-  priceConfig,
-  setPriceConfig,
-  dataDateRange,
+  strategy,
+  setStrategy,
 }) {
-  const { lang, t } = useLang()
+  const { t } = useLang()
+  const { priceConfig } = usePriceConfig()
+  const hasHourlyPrices = !!(priceConfig.hourlyPriceMap && priceConfig.hourlyPriceMap.size > 0)
 
   return (
     <div className="space-y-4">
@@ -67,16 +66,12 @@ export default function SimulationControls({
         <AccuConfig t={t} config={accuConfig} onChange={setAccuConfig} />
       </Section>
 
-      <Section title={`⚖️ ${t('configStrategy')}`}>
-        <StrategyConfig lang={lang} t={t} homePriority={homePriority} onChange={setHomePriority} />
-      </Section>
-
-      <Section title={`💶 ${t('configPrices')}`} defaultOpen={false}>
-        <PriceConfig
+      <Section title={`🤖 ${t('configStrategy')}`}>
+        <StrategyConfig
           t={t}
-          config={priceConfig}
-          onChange={setPriceConfig}
-          dataDateRange={dataDateRange}
+          strategy={strategy}
+          onChange={setStrategy}
+          hasHourlyPrices={hasHourlyPrices}
         />
       </Section>
     </div>

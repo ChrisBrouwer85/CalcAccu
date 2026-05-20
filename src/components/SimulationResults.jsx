@@ -10,13 +10,27 @@ function fmtEur(n) {
   return isFinite(n) ? `€${Math.round(n).toLocaleString('nl-NL')}` : '—'
 }
 
+function CostRow({ label, value, sub, bold, colorClass }) {
+  return (
+    <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className={`${bold ? 'font-bold text-lg' : 'font-semibold'} ${colorClass ?? 'text-gray-700'}`}>
+        {value}
+        {sub && <span className="block text-xs text-gray-400 font-normal text-right">{sub}</span>}
+      </span>
+    </div>
+  )
+}
+
 function SummaryCard({ size, result, t, costPerKwh, isBest }) {
   const { totals, financial } = result
   const savings = financial.annualSavings
   const totalCost = size * costPerKwh
   const payback = savings > 0 ? totalCost / savings : Infinity
   const selfSuffImprovement = totals.selfSufficiency - totals.baselineSelfSufficiency
-  const importReduction = totals.baselineGridImport - totals.gridImport
+  const periodMonths = financial.periodDays ? Math.round(financial.periodDays / 30.4) : null
+  const extrapolated = periodMonths && periodMonths < 11
+  const yr = t('years').replace('jaar', '').replace('years', '').trim() || 'yr'
 
   return (
     <div className={`relative bg-white rounded-2xl border-2 p-4 sm:p-5 ${isBest ? 'border-green-400 shadow-lg' : 'border-gray-200'}`}>
@@ -28,20 +42,28 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
       <div className="text-center mb-4">
         <div className="text-2xl font-bold text-gray-800">🔋 {size} kWh</div>
       </div>
-      <div className="space-y-3">
-        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
-          <span className="text-sm text-gray-500">{t('annualSavings')}</span>
-          <span className={`font-bold text-lg ${savings > 0 ? 'text-green-600' : 'text-red-500'}`}>
-            {fmtEur(savings)} / {t('years').replace('jaar','').replace('years','').trim() || 'yr'}
-          </span>
-        </div>
-        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
-          <span className="text-sm text-gray-500">{t('payback')}</span>
-          <span className="font-semibold text-gray-700">
-            {isFinite(payback) ? `${fmt(payback, 1)} ${t('years')}` : '—'}
-          </span>
-        </div>
-        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2 border-b border-gray-100">
+      <div className="space-y-0">
+        <CostRow
+          label={t('currentNetCost')}
+          value={`${fmtEur(financial.annualBaselineNetCost)} / ${yr}`}
+          sub={extrapolated ? `${t('basedOn')} ${periodMonths} ${t('months')}` : null}
+        />
+        <CostRow
+          label={t('simulatedNetCost')}
+          value={`${fmtEur(financial.annualActualNetCost)} / ${yr}`}
+          colorClass="text-blue-700"
+        />
+        <CostRow
+          label={t('annualSavings')}
+          value={`${fmtEur(savings)} / ${yr}`}
+          bold
+          colorClass={savings > 0 ? 'text-green-600' : 'text-red-500'}
+        />
+        <CostRow
+          label={t('payback')}
+          value={isFinite(payback) ? `${fmt(payback, 1)} ${t('years')}` : '—'}
+        />
+        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2">
           <span className="text-sm text-gray-500">{t('selfSufficiency')}</span>
           <span className="font-semibold text-gray-700">
             {fmt(totals.selfSufficiency, 1)}%
@@ -49,10 +71,6 @@ function SummaryCard({ size, result, t, costPerKwh, isBest }) {
               <span className="text-green-600 text-sm ml-1">(+{fmt(selfSuffImprovement, 1)}%)</span>
             )}
           </span>
-        </div>
-        <div className="flex flex-wrap justify-between items-center gap-x-2 py-2">
-          <span className="text-sm text-gray-500">{t('gridImportReduction')}</span>
-          <span className="font-semibold text-gray-700">{fmt(importReduction, 0)} kWh</span>
         </div>
       </div>
     </div>
@@ -68,31 +86,35 @@ function MonthlyTable({ result, t }) {
           <tr className="bg-gray-50">
             <th className="px-4 py-2 text-left text-gray-600 font-medium">{t('month')}</th>
             <th className="px-4 py-2 text-right text-gray-600 font-medium">{t('solar')} (kWh)</th>
-            <th className="px-4 py-2 text-right text-gray-600 font-medium">{t('gridImport')} (kWh)</th>
-            <th className="px-4 py-2 text-right text-gray-600 font-medium">{t('gridExport')} (kWh)</th>
             <th className="px-4 py-2 text-right text-gray-600 font-medium">{t('batteryDischarge')} (kWh)</th>
+            <th className="px-4 py-2 text-right text-gray-600 font-medium">{t('currentNetCost')}</th>
+            <th className="px-4 py-2 text-right text-gray-600 font-medium">{t('simulatedNetCost')}</th>
             <th className="px-4 py-2 text-right text-gray-600 font-medium">{t('savings')}</th>
           </tr>
         </thead>
         <tbody>
-          {months.map((m, i) => (
-            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-              <td className="px-4 py-2 text-gray-700 font-medium">{t(MONTHS[i])}</td>
-              <td className="px-4 py-2 text-right text-amber-700">{fmt(m.solar, 1)}</td>
-              <td className="px-4 py-2 text-right text-red-600">{fmt(m.gridImport, 1)}</td>
-              <td className="px-4 py-2 text-right text-blue-600">{fmt(m.gridExport, 1)}</td>
-              <td className="px-4 py-2 text-right text-green-600">{fmt(m.batteryDischarge, 1)}</td>
-              <td className={`px-4 py-2 text-right font-medium ${m.savings >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                {fmtEur(m.savings)}
-              </td>
-            </tr>
-          ))}
+          {months.map((m, i) => {
+            const baselineNet = m.baselineCost - m.baselineRevenue
+            const actualNet = m.actualCost - m.actualRevenue
+            return (
+              <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                <td className="px-4 py-2 text-gray-700 font-medium">{t(MONTHS[i])}</td>
+                <td className="px-4 py-2 text-right text-amber-700">{fmt(m.solar, 1)}</td>
+                <td className="px-4 py-2 text-right text-green-600">{fmt(m.batteryDischarge, 1)}</td>
+                <td className="px-4 py-2 text-right text-gray-600">{fmtEur(baselineNet)}</td>
+                <td className="px-4 py-2 text-right text-blue-700">{fmtEur(actualNet)}</td>
+                <td className={`px-4 py-2 text-right font-medium ${m.savings >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {fmtEur(m.savings)}
+                </td>
+              </tr>
+            )
+          })}
           <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
             <td className="px-4 py-2 text-gray-800">Totaal</td>
             <td className="px-4 py-2 text-right text-amber-700">{fmt(months.reduce((s,m)=>s+m.solar,0), 0)}</td>
-            <td className="px-4 py-2 text-right text-red-600">{fmt(months.reduce((s,m)=>s+m.gridImport,0), 0)}</td>
-            <td className="px-4 py-2 text-right text-blue-600">{fmt(months.reduce((s,m)=>s+m.gridExport,0), 0)}</td>
             <td className="px-4 py-2 text-right text-green-600">{fmt(months.reduce((s,m)=>s+m.batteryDischarge,0), 0)}</td>
+            <td className="px-4 py-2 text-right text-gray-600">{fmtEur(months.reduce((s,m)=>s+m.baselineCost-m.baselineRevenue,0))}</td>
+            <td className="px-4 py-2 text-right text-blue-700">{fmtEur(months.reduce((s,m)=>s+m.actualCost-m.actualRevenue,0))}</td>
             <td className="px-4 py-2 text-right text-green-700">{fmtEur(months.reduce((s,m)=>s+m.savings,0))}</td>
           </tr>
         </tbody>
