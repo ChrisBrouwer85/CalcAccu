@@ -26,7 +26,6 @@ export default function SimulationPage() {
   })
   const [strategy, setStrategy] = useState({
     sellFraction: 0.5,
-    allowGridChargeNegative: false,
     allowGridChargeCheap: false,
   })
   const [sensorTariffs, setSensorTariffs] = useState({})

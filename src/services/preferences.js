@@ -13,7 +13,6 @@ export const DEFAULT_PREFERENCES = {
     },
     strategy: {
       sellFraction: 0.5,
-      allowGridChargeNegative: false,
       allowGridChargeCheap: false,
     },
     priceConfig: {
@@ -35,13 +34,12 @@ function mergeDefaults(stored) {
     defaults: {
       accuConfig: { ...DEFAULT_PREFERENCES.defaults.accuConfig, ...(stored.defaults?.accuConfig ?? {}) },
       strategy: (() => {
-        const s = stored.defaults?.strategy ?? {}
-        // Migrate old allowGridCharge boolean to the two new flags
-        if ('allowGridCharge' in s && !('allowGridChargeNegative' in s)) {
-          const { allowGridCharge, ...rest } = s
-          return { ...DEFAULT_PREFERENCES.defaults.strategy, ...rest, allowGridChargeNegative: allowGridCharge, allowGridChargeCheap: allowGridCharge }
-        }
-        return { ...DEFAULT_PREFERENCES.defaults.strategy, ...s }
+        const { allowGridCharge, allowGridChargeNegative, ...s } = stored.defaults?.strategy ?? {}
+        // allowGridCharge and allowGridChargeNegative are obsolete — negative-price charging
+        // is now always active; allowGridChargeCheap is the only remaining flag.
+        // Migrate: if either old flag was on, enable allowGridChargeCheap too.
+        const cheapFromMigration = (allowGridCharge || allowGridChargeNegative) ? { allowGridChargeCheap: true } : {}
+        return { ...DEFAULT_PREFERENCES.defaults.strategy, ...s, ...cheapFromMigration }
       })(),
       priceConfig: { ...DEFAULT_PREFERENCES.defaults.priceConfig, ...(stored.defaults?.priceConfig ?? {}) },
     },

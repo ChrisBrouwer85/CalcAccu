@@ -1,6 +1,5 @@
 export default function StrategyConfig({ t, strategy, onChange, hasHourlyPrices }) {
   const sellFraction = strategy.sellFraction ?? 0.5
-  const allowGridChargeNegative = strategy.allowGridChargeNegative ?? false
   const allowGridChargeCheap = strategy.allowGridChargeCheap ?? false
 
   const sellFractionPct = Math.round(sellFraction * 100)
@@ -68,17 +67,8 @@ export default function StrategyConfig({ t, strategy, onChange, hasHourlyPrices 
         </div>
       </div>
 
-      {/* Grid charge toggles */}
-      <div className="space-y-2">
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={allowGridChargeNegative}
-            onChange={e => onChange({ ...strategy, allowGridChargeNegative: e.target.checked })}
-            className="mt-0.5 accent-blue-600 w-4 h-4 shrink-0"
-          />
-          <span className="text-sm text-gray-700">{t('emsGridChargeNegative')}</span>
-        </label>
+      {/* Grid charge toggle */}
+      <div>
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -88,6 +78,7 @@ export default function StrategyConfig({ t, strategy, onChange, hasHourlyPrices 
           />
           <span className="text-sm text-gray-700">{t('emsGridChargeCheap')}</span>
         </label>
+        <p className="mt-1.5 text-xs text-gray-400 pl-7">{t('emsGridChargeNegativeAuto')}</p>
       </div>
     </div>
   )

@@ -41,7 +41,7 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     maxDischargeRateKw = 5,
   } = batteryConfig
 
-  const { sellFraction = 0.5, allowGridChargeNegative = false, allowGridChargeCheap = false } = strategy
+  const { sellFraction = 0.5, allowGridChargeCheap = false } = strategy
 
   // Fallback all-in price used when no price map is loaded (€/kWh, NL 2025 estimate)
   const FALLBACK_PRICE = 0.27
@@ -115,15 +115,16 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     // Using battery (not capacityKwh) so a large undercharged battery still sells.
     const reserve = battery * (1 - sellFraction)
 
-    // Peak: top sellFraction of the day's prices → sell from battery.
-    // Strict > so the cheapest hour is never treated as peak (handles sellFraction=1 edge case).
-    // buyPrice > 0 guard: never sell at negative prices — it would cost money instead of earning it.
-    const isPeakHour = sellFraction > 0 && !allSame && rank > (1 - sellFraction) && buyPrice > 0
-    // Cheap-charge: negative price (always worthwhile) or bottom sellFraction/2 of the day
-    const isCheapHour = (allowGridChargeNegative && buyPrice < 0) ||
+    // Charging at a negative price always earns money — baked in, no flag needed.
+    // Optionally also charge during the cheapest positive hours (allowGridChargeCheap).
+    const isCheapHour = buyPrice < 0 ||
       (allowGridChargeCheap && !allSame && rank < sellFraction * 0.5)
+    // Sell from battery during the top sellFraction of the day's prices.
+    // Strict > avoids treating the absolute cheapest hour as sell (sellFraction=1 edge case).
+    // Only at positive prices — selling at a negative price costs money instead of earning it.
+    const isSellHour = !isCheapHour && sellFraction > 0 && !allSame && rank > (1 - sellFraction) && buyPrice > 0
 
-    if (isPeakHour) {
+    if (isSellHour) {
       if (net >= 0) {
         // Export all solar surplus; don't charge battery
         gridExport = net
