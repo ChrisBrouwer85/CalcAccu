@@ -101,6 +101,7 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
     let batteryCharge = 0
     let batteryDischarge = 0
     let gridImport = 0
+    let gridImportCharge = 0  // subset of gridImport used for charging battery from grid
     let gridExport = 0
 
     const key = hourKey(timestamp)
@@ -178,6 +179,7 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
         battery = Math.min(capacityKwh, battery + gridChargeKwh * chargeEfficiency)
         batteryCharge += gridChargeKwh
         gridImport += gridChargeKwh
+        gridImportCharge = gridChargeKwh
       }
     } else {
       // Normal hour: maximize self-consumption (full priority)
@@ -256,6 +258,7 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
       solar,
       homeConsumption,
       gridImport,
+      gridImportCharge,
       gridExport,
       batteryCharge,
       batteryDischarge,
