@@ -100,9 +100,11 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
 
     let batteryCharge = 0
     let batteryDischarge = 0
+    let batteryToHome = 0        // effective kWh from battery delivered to home (post-efficiency)
     let gridImport = 0
-    let gridImportCharge = 0  // subset of gridImport used for charging battery from grid
+    let gridImportCharge = 0     // subset of gridImport used for charging battery from grid
     let gridExport = 0
+    let gridExportBattery = 0    // subset of gridExport sold from battery (post-efficiency)
 
     const key = hourKey(timestamp)
     const buyPrice = priceMap ? (priceMap.get(key) ?? FALLBACK_PRICE) : FALLBACK_PRICE
@@ -134,13 +136,15 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
         const sellKwh = Math.min(sellable, maxDischargeRateKw)
         battery = Math.max(0, battery - sellKwh / dischargeEfficiency)
         batteryDischarge = sellKwh
-        gridExport += sellKwh * dischargeEfficiency
+        gridExportBattery = sellKwh * dischargeEfficiency
+        gridExport += gridExportBattery
       } else {
         // Cover home from battery first (home always wins)
         const deficit = -net
         const homeKwh = Math.min(battery, maxDischargeRateKw, deficit)
         battery = Math.max(0, battery - homeKwh / dischargeEfficiency)
         const covered = homeKwh * dischargeEfficiency
+        batteryToHome = covered
         gridImport = Math.max(0, deficit - covered)
         batteryDischarge = homeKwh
         // Sell what remains above reserve, within rate cap
@@ -149,7 +153,8 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
         const sellKwh = Math.min(sellable, rateLeft)
         battery = Math.max(0, battery - sellKwh / dischargeEfficiency)
         batteryDischarge += sellKwh
-        gridExport = sellKwh * dischargeEfficiency
+        gridExportBattery = sellKwh * dischargeEfficiency
+        gridExport = gridExportBattery
       }
     } else if (isCheapHour) {
       // Solar/home balance. For net >= 0: absorb solar, export surplus (possibly at negative cost).
@@ -169,7 +174,8 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
           const dis = Math.min(battery, maxDischargeRateKw, deficit)
           battery = Math.max(0, battery - dis / dischargeEfficiency)
           batteryDischarge = dis
-          gridImport = Math.max(0, deficit - dis * dischargeEfficiency)
+          batteryToHome = dis * dischargeEfficiency
+          gridImport = Math.max(0, deficit - batteryToHome)
         }
       }
       // Top up battery from grid (arbitrage)
@@ -193,7 +199,8 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
         const dis = Math.min(battery, maxDischargeRateKw, deficit)
         battery = Math.max(0, battery - dis / dischargeEfficiency)
         batteryDischarge = dis
-        gridImport = Math.max(0, deficit - dis * dischargeEfficiency)
+        batteryToHome = dis * dischargeEfficiency
+        gridImport = Math.max(0, deficit - batteryToHome)
       }
     }
 
@@ -260,8 +267,10 @@ export function runSimulation(hourlyData, batteryConfig, strategy, priceMap, sel
       gridImport,
       gridImportCharge,
       gridExport,
+      gridExportBattery,
       batteryCharge,
       batteryDischarge,
+      batteryToHome,
       batteryLevel: battery,
     })
   }

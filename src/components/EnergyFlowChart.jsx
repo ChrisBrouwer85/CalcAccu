@@ -4,42 +4,41 @@ import {
 } from 'recharts'
 import { MONTHS } from '../i18n.js'
 
-function aggregate() {
+function emptyBucket() {
   return {
     solar: 0,
-    consumption: 0,
+    batteryToHome: 0,
     gridImportHome: 0,
     gridImportCharge: 0,
-    gridExport: 0,
-    batteryDischarge: 0,
+    gridExportSolar: 0,
+    gridExportBattery: 0,
   }
 }
 
-function round1(x) { return +x.toFixed(1) }
+function addRow(bucket, row) {
+  const charge = row.gridImportCharge ?? 0
+  const expBattery = row.gridExportBattery ?? 0
+  bucket.solar += row.solar
+  bucket.batteryToHome += row.batteryToHome ?? 0
+  bucket.gridImportHome += row.gridImport - charge
+  bucket.gridImportCharge += charge
+  bucket.gridExportSolar += row.gridExport - expBattery
+  bucket.gridExportBattery += expBattery
+}
+
+function round1(bucket) {
+  return Object.fromEntries(
+    Object.entries(bucket).map(([k, v]) => [k, typeof v === 'number' ? +v.toFixed(1) : v])
+  )
+}
 
 function aggregateMonthly(hourly, t) {
   const months = Array.from({ length: 12 }, (_, i) => ({
     label: t(MONTHS[i]),
-    ...aggregate(),
+    ...emptyBucket(),
   }))
-  for (const row of hourly) {
-    const m = new Date(row.timestamp).getMonth()
-    months[m].solar += row.solar
-    months[m].consumption += row.homeConsumption
-    months[m].gridImportHome += row.gridImport - (row.gridImportCharge ?? 0)
-    months[m].gridImportCharge += row.gridImportCharge ?? 0
-    months[m].gridExport += row.gridExport
-    months[m].batteryDischarge += row.batteryDischarge
-  }
-  return months.map(m => ({
-    ...m,
-    solar: round1(m.solar),
-    consumption: round1(m.consumption),
-    gridImportHome: round1(m.gridImportHome),
-    gridImportCharge: round1(m.gridImportCharge),
-    gridExport: round1(m.gridExport),
-    batteryDischarge: round1(m.batteryDischarge),
-  }))
+  for (const row of hourly) addRow(months[new Date(row.timestamp).getMonth()], row)
+  return months.map(round1)
 }
 
 function aggregateWeekly(hourly) {
@@ -48,31 +47,20 @@ function aggregateWeekly(hourly) {
     const d = new Date(row.timestamp)
     const weekNum = Math.floor((d - new Date(d.getFullYear(), 0, 1)) / (7 * 24 * 3600 * 1000))
     const key = `${d.getFullYear()}-W${String(weekNum).padStart(2,'0')}`
-    if (!weeks[key]) weeks[key] = { label: key, ...aggregate() }
-    weeks[key].solar += row.solar
-    weeks[key].consumption += row.homeConsumption
-    weeks[key].gridImportHome += row.gridImport - (row.gridImportCharge ?? 0)
-    weeks[key].gridImportCharge += row.gridImportCharge ?? 0
-    weeks[key].gridExport += row.gridExport
-    weeks[key].batteryDischarge += row.batteryDischarge
+    if (!weeks[key]) weeks[key] = { label: key, ...emptyBucket() }
+    addRow(weeks[key], row)
   }
-  return Object.values(weeks).slice(0, 52)
+  return Object.values(weeks).slice(0, 52).map(round1)
 }
 
 function aggregateDaily(hourly) {
   const days = {}
   for (const row of hourly) {
-    const d = new Date(row.timestamp)
-    const key = d.toISOString().slice(0, 10)
-    if (!days[key]) days[key] = { label: key.slice(5), ...aggregate() }
-    days[key].solar += row.solar
-    days[key].consumption += row.homeConsumption
-    days[key].gridImportHome += row.gridImport - (row.gridImportCharge ?? 0)
-    days[key].gridImportCharge += row.gridImportCharge ?? 0
-    days[key].gridExport += row.gridExport
-    days[key].batteryDischarge += row.batteryDischarge
+    const key = new Date(row.timestamp).toISOString().slice(0, 10)
+    if (!days[key]) days[key] = { label: key.slice(5), ...emptyBucket() }
+    addRow(days[key], row)
   }
-  return Object.values(days).slice(0, 365)
+  return Object.values(days).slice(0, 365).map(round1)
 }
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -138,11 +126,24 @@ export default function EnergyFlowChart({ t, hourly }) {
           <YAxis unit=" kWh" tick={{ fontSize: 11 }} width={65} />
           <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Area type="monotone" dataKey="solar" stackId="supply" name={t('solar')} fill="#fde68a" stroke="#f59e0b" fillOpacity={0.8} />
-          <Area type="monotone" dataKey="batteryDischarge" stackId="supply" name={t('batteryDischarge')} fill="#6ee7b7" stroke="#10b981" fillOpacity={0.8} />
-          <Area type="monotone" dataKey="gridImportHome" stackId="import" name={t('gridImportHome')} fill="#fca5a5" stroke="#ef4444" fillOpacity={0.7} />
-          <Area type="monotone" dataKey="gridImportCharge" stackId="import" name={t('gridImportCharge')} fill="#fed7aa" stroke="#f97316" fillOpacity={0.8} />
-          <Area type="monotone" dataKey="gridExport" name={t('gridExport')} fill="#93c5fd" stroke="#3b82f6" fillOpacity={0.6} />
+          {/* Local supply: solar production */}
+          <Area type="monotone" dataKey="solar" stackId="supply"
+            name={t('solar')} fill="#fde68a" stroke="#f59e0b" fillOpacity={0.8} />
+          {/* Battery discharged to cover home demand */}
+          <Area type="monotone" dataKey="batteryToHome" stackId="supply"
+            name={t('batteryToHome')} fill="#6ee7b7" stroke="#10b981" fillOpacity={0.8} />
+          {/* Grid drawn for home use */}
+          <Area type="monotone" dataKey="gridImportHome" stackId="import"
+            name={t('gridImportHome')} fill="#fca5a5" stroke="#ef4444" fillOpacity={0.7} />
+          {/* Grid drawn specifically to charge the battery */}
+          <Area type="monotone" dataKey="gridImportCharge" stackId="import"
+            name={t('gridImportCharge')} fill="#fed7aa" stroke="#f97316" fillOpacity={0.8} />
+          {/* Solar surplus exported directly to grid */}
+          <Area type="monotone" dataKey="gridExportSolar" stackId="export"
+            name={t('gridExportSolar')} fill="#bfdbfe" stroke="#3b82f6" fillOpacity={0.7} />
+          {/* Battery energy sold to grid during high-price hours */}
+          <Area type="monotone" dataKey="gridExportBattery" stackId="export"
+            name={t('gridExportBattery')} fill="#a5b4fc" stroke="#6366f1" fillOpacity={0.8} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
